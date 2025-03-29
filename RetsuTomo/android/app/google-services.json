@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "215032831676",
+    "project_id": "retsutomo-1e2b2",
+    "storage_bucket": "retsutomo-1e2b2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:215032831676:android:1a9814711892798b0cbab9",
+        "android_client_info": {
+          "package_name": "com.retsutomo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDfjgErPl6bDjPciwL2vcKEvf_WaWJEH68"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
