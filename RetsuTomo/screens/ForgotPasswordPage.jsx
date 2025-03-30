@@ -10,14 +10,16 @@ import {
 
 import { useNavigation } from '@react-navigation/native';
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
     const navigation = useNavigation();
 
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.title}>Welcome Back!</Text>
-                <Text style={styles.subtitle}>Log in to continue</Text>
+                <Text style={styles.title}>Forgot Password?</Text>
+                <Text style={styles.subtitle}>
+                    Enter your email address and we'll send you a link to reset your password.
+                </Text>
             </View>
             <View style={styles.form}>
                 <TextInput
@@ -26,23 +28,16 @@ export default function LoginPage() {
                     placeholderTextColor="#9992a7"
                     keyboardType="email-address"
                 />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Password"
-                    placeholderTextColor="#9992a7"
-                    secureTextEntry
-                />
                 <TouchableOpacity style={styles.button}>
-                    <Text style={styles.buttonText}>Log In</Text>
-                </TouchableOpacity>
-                <TouchableOpacity>
-                    <Text onPress={() => navigation.navigate('ForgotPasswordPage')} style={styles.link}>Forgot Password?</Text>
+                    <Text style={styles.buttonText}>Send Reset Link</Text>
                 </TouchableOpacity>
             </View>
             <View style={styles.footer}>
                 <Text style={styles.footerText}>
-                    Don't have an account?{' '}
-                    <Text onPress={() => navigation.navigate('RegisterPage')} style={styles.link}>Sign Up</Text>
+                    Remembered your password?{' '}
+                    <Text onPress={() => navigation.navigate('LoginPage')} style={styles.link}>
+                        Log In
+                    </Text>
                 </Text>
             </View>
         </SafeAreaView>
