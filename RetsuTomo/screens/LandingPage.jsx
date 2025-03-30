@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
-
-import landing from '../assets/images/retsutomo-landing-page.png'
+import { useNavigation } from '@react-navigation/native';
+import landing from '../assets/images/retsutomo-landing-page.png';
 
 export default function LandingPage() {
+  const navigation = useNavigation();
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.hero}>
@@ -22,12 +24,6 @@ export default function LandingPage() {
       </View>
       <View style={styles.content}>
         <View style={styles.contentHeader}>
-          {/* <Text style={styles.title}>
-            Smarter queues,
-            <View style={styles.appName}>
-              <Text style={styles.appNameText}>Happier Customers</Text>
-            </View>
-          </Text> */}
           <Text style={styles.text}>
             Manage your queues with ease using our
             simple and effective queue management system.
@@ -35,9 +31,7 @@ export default function LandingPage() {
         </View>
 
         <TouchableOpacity
-          onPress={() => {
-            // handle onPress
-          }}>
+          onPress={() => navigation.navigate('LoginPage')}>
           <View style={styles.button}>
             <Text style={styles.buttonText}>Let's go</Text>
           </View>
