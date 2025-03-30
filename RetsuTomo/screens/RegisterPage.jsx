@@ -10,16 +10,21 @@ import {
 
 import { useNavigation } from '@react-navigation/native';
 
-export default function LoginPage() {
+export default function RegisterPage() {
     const navigation = useNavigation();
 
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.title}>Welcome Back!</Text>
-                <Text style={styles.subtitle}>Log in to continue</Text>
+                <Text style={styles.title}>Create an Account</Text>
+                <Text style={styles.subtitle}>Sign up to get started</Text>
             </View>
             <View style={styles.form}>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Full Name"
+                    placeholderTextColor="#9992a7"
+                />
                 <TextInput
                     style={styles.input}
                     placeholder="Email"
@@ -33,16 +38,13 @@ export default function LoginPage() {
                     secureTextEntry
                 />
                 <TouchableOpacity style={styles.button}>
-                    <Text style={styles.buttonText}>Log In</Text>
-                </TouchableOpacity>
-                <TouchableOpacity>
-                    <Text style={styles.link}>Forgot Password?</Text>
+                    <Text style={styles.buttonText}>Sign Up</Text>
                 </TouchableOpacity>
             </View>
             <View style={styles.footer}>
                 <Text style={styles.footerText}>
-                    Don't have an account?{' '}
-                    <Text onPress={() => navigation.navigate('RegisterPage')} style={styles.link}>Sign Up</Text>
+                    Already have an account?{' '}
+                    <Text onPress={() => navigation.navigate('LoginPage')} style={styles.link}>Log In</Text>
                 </Text>
             </View>
         </SafeAreaView>
