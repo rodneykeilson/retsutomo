@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     StyleSheet,
     View,
@@ -6,12 +6,26 @@ import {
     SafeAreaView,
     TextInput,
     TouchableOpacity,
+    Alert,
 } from 'react-native';
 
 import { useNavigation } from '@react-navigation/native';
+import { auth } from '../services/firebase'; // Import Firebase auth
 
 export default function LoginPage() {
     const navigation = useNavigation();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+
+    const handleLogin = async () => {
+        try {
+            await auth.signInWithEmailAndPassword(email, password);
+            Alert.alert('Success', 'Logged in successfully!');
+            navigation.navigate('DashboardPage'); // Navigate to DashboardPage after successful login
+        } catch (error) {
+            Alert.alert('Error', error.message); // Show error message
+        }
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -25,15 +39,18 @@ export default function LoginPage() {
                     placeholder="Email"
                     placeholderTextColor="#9992a7"
                     keyboardType="email-address"
+                    value={email}
+                    onChangeText={setEmail}
                 />
                 <TextInput
                     style={styles.input}
                     placeholder="Password"
                     placeholderTextColor="#9992a7"
                     secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
                 />
-                <TouchableOpacity style={styles.button}
-                    onPress={() => navigation.navigate('DashboardPage')}>
+                <TouchableOpacity style={styles.button} onPress={handleLogin}>
                     <Text style={styles.buttonText}>Log In</Text>
                 </TouchableOpacity>
                 <TouchableOpacity>
