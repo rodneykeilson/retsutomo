@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     StyleSheet,
     View,
@@ -6,12 +6,26 @@ import {
     SafeAreaView,
     TextInput,
     TouchableOpacity,
+    Alert,
 } from 'react-native';
 
 import { useNavigation } from '@react-navigation/native';
+import { auth } from '../services/firebase';
 
 export default function RegisterPage() {
     const navigation = useNavigation();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+
+    const handleSignUp = async () => {
+        try {
+            await auth.createUserWithEmailAndPassword(email, password);
+            Alert.alert('Success', 'Account created successfully!');
+            navigation.navigate('LoginPage');
+        } catch (error) {
+            Alert.alert('Error', error.message);
+        }
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -22,22 +36,21 @@ export default function RegisterPage() {
             <View style={styles.form}>
                 <TextInput
                     style={styles.input}
-                    placeholder="Full Name"
-                    placeholderTextColor="#9992a7"
-                />
-                <TextInput
-                    style={styles.input}
                     placeholder="Email"
                     placeholderTextColor="#9992a7"
                     keyboardType="email-address"
+                    value={email}
+                    onChangeText={setEmail}
                 />
                 <TextInput
                     style={styles.input}
                     placeholder="Password"
                     placeholderTextColor="#9992a7"
                     secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
                 />
-                <TouchableOpacity style={styles.button}>
+                <TouchableOpacity style={styles.button} onPress={handleSignUp}>
                     <Text style={styles.buttonText}>Sign Up</Text>
                 </TouchableOpacity>
             </View>
