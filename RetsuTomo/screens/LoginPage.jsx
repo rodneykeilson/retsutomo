@@ -32,7 +32,8 @@ export default function LoginPage() {
                     placeholderTextColor="#9992a7"
                     secureTextEntry
                 />
-                <TouchableOpacity style={styles.button}>
+                <TouchableOpacity style={styles.button}
+                    onPress={() => navigation.navigate('DashboardPage')}>
                     <Text style={styles.buttonText}>Log In</Text>
                 </TouchableOpacity>
                 <TouchableOpacity>

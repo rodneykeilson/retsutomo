@@ -5,6 +5,7 @@ import LandingPage from './screens/LandingPage';
 import LoginPage from './screens/LoginPage';
 import RegisterPage from './screens/RegisterPage';
 import ForgotPasswordPage from './screens/ForgotPasswordPage';
+import DashboardPage from './screens/DashboardPage';
 
 const Stack = createStackNavigator();
 
@@ -16,7 +17,8 @@ export default function App() {
         <Stack.Screen name="LoginPage" component={LoginPage} options={{ headerShown: false }} />
         <Stack.Screen name="RegisterPage" component={RegisterPage} options={{ headerShown: false }} />
         <Stack.Screen name="ForgotPasswordPage" component={ForgotPasswordPage} options={{ headerShown: false }} />
+        <Stack.Screen name="DashboardPage" component={DashboardPage} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
-}
+} 
