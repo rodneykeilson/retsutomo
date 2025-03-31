@@ -57,3 +57,6 @@ Thumbs.db
 *.key
 *.pfx
 *.p12
+
+# Google API
+android/app/google-services.json
