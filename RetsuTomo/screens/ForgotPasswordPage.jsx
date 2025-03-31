@@ -20,9 +20,9 @@ export default function ForgotPasswordPage() {
         try {
             await auth.sendPasswordResetEmail(email);
             Alert.alert('Success', 'Password reset link sent to your email!');
-            navigation.navigate('LoginPage'); // Navigate back to LoginPage
+            navigation.navigate('LoginPage');
         } catch (error) {
-            Alert.alert('Error', error.message); // Show error message
+            Alert.alert('Error', error.message);
         }
     };
 

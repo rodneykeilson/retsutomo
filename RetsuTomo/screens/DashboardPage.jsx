@@ -10,6 +10,8 @@ import {
 
 import { createDrawerNavigator } from '@react-navigation/drawer';
 
+import ProfilePage from './ProfilePage';
+
 const Drawer = createDrawerNavigator();
 
 function DashboardHome() {
@@ -37,17 +39,6 @@ function DashboardHome() {
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.list}
             />
-        </SafeAreaView>
-    );
-}
-
-function ProfilePage() {
-    return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>Profile</Text>
-                <Text style={styles.subtitle}>Manage your account details</Text>
-            </View>
         </SafeAreaView>
     );
 }

@@ -21,9 +21,9 @@ export default function LoginPage() {
         try {
             await auth.signInWithEmailAndPassword(email, password);
             Alert.alert('Success', 'Logged in successfully!');
-            navigation.navigate('DashboardPage'); // Navigate to DashboardPage after successful login
+            navigation.navigate('DashboardPage');
         } catch (error) {
-            Alert.alert('Error', error.message); // Show error message
+            Alert.alert('Error', error.message);
         }
     };
 
