@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     StyleSheet,
     View,
@@ -6,12 +6,25 @@ import {
     SafeAreaView,
     TextInput,
     TouchableOpacity,
+    Alert,
 } from 'react-native';
 
 import { useNavigation } from '@react-navigation/native';
+import { auth } from '../services/firebase'; // Import Firebase auth
 
 export default function ForgotPasswordPage() {
     const navigation = useNavigation();
+    const [email, setEmail] = useState('');
+
+    const handlePasswordReset = async () => {
+        try {
+            await auth.sendPasswordResetEmail(email);
+            Alert.alert('Success', 'Password reset link sent to your email!');
+            navigation.navigate('LoginPage'); // Navigate back to LoginPage
+        } catch (error) {
+            Alert.alert('Error', error.message); // Show error message
+        }
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -27,8 +40,10 @@ export default function ForgotPasswordPage() {
                     placeholder="Email"
                     placeholderTextColor="#9992a7"
                     keyboardType="email-address"
+                    value={email}
+                    onChangeText={setEmail}
                 />
-                <TouchableOpacity style={styles.button}>
+                <TouchableOpacity style={styles.button} onPress={handlePasswordReset}>
                     <Text style={styles.buttonText}>Send Reset Link</Text>
                 </TouchableOpacity>
             </View>
