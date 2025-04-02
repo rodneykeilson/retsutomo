@@ -6,7 +6,7 @@ import LoginPage from './screens/LoginPage';
 import RegisterPage from './screens/RegisterPage';
 import ForgotPasswordPage from './screens/ForgotPasswordPage';
 import DashboardPage from './screens/DashboardPage';
-// import ManageQueuesPage from './screens/ManageQueuesPage';
+import ManageQueuesPage from './screens/ManageQueuesPage';
 import ManageBusinessesPage from './screens/ManageBusinessesPage';
 import ProfilePage from './screens/ProfilePage';
 import BusinessListPage from './screens/BusinessListPage';
@@ -23,7 +23,7 @@ export default function App() {
         <Stack.Screen name="RegisterPage" component={RegisterPage} options={{ headerShown: false }} />
         <Stack.Screen name="ForgotPasswordPage" component={ForgotPasswordPage} options={{ headerShown: false }} />
         <Stack.Screen name="DashboardPage" component={DashboardPage} options={{ headerShown: false }} />
-        {/* <Stack.Screen name="ManageQueuesPage" component={ManageQueuesPage} options={{ headerShown: false }} /> */}
+        <Stack.Screen name="ManageQueuesPage" component={ManageQueuesPage} options={{ headerShown: false }} />
         <Stack.Screen name="ManageBusinessesPage" component={ManageBusinessesPage} options={{ headerShown: false }} />
         <Stack.Screen name="ProfilePage" component={ProfilePage} options={{ headerShown: false }} />
         <Stack.Screen name="BusinessListPage" component={BusinessListPage} options={{ headerShown: false }} />
