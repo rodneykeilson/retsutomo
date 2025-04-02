@@ -11,6 +11,7 @@ import ManageBusinessesPage from './screens/ManageBusinessesPage';
 import ProfilePage from './screens/ProfilePage';
 import BusinessListPage from './screens/BusinessListPage';
 import QueuePage from './screens/QueuePage';
+import MyQueuesPage from './screens/MyQueuesPage';
 
 const Stack = createStackNavigator();
 
@@ -28,6 +29,7 @@ export default function App() {
         <Stack.Screen name="ProfilePage" component={ProfilePage} options={{ headerShown: false }} />
         <Stack.Screen name="BusinessListPage" component={BusinessListPage} options={{ headerShown: false }} />
         <Stack.Screen name="QueuePage" component={QueuePage} options={{ headerShown: false }} />
+        <Stack.Screen name="MyQueuesPage" component={MyQueuesPage} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

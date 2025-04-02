@@ -67,6 +67,29 @@ export default function ManageQueuesPage() {
                 return;
             }
 
+            const businessDoc = await firestore
+                .collection('businesses')
+                .doc(businessId)
+                .get();
+
+            console.log('Owner ID:', businessDoc.data().ownerId);
+            console.log('Current User:', auth.currentUser.uid);
+
+            // Check if the queue document exists
+            const queueDoc = await firestore
+                .collection('businesses')
+                .doc(businessId)
+                .collection('queues')
+                .doc(queueId)
+                .get();
+
+            console.log('Queue Data:', queueDoc.exists ? queueDoc.data() : 'Queue not found');
+
+            if (!queueDoc.exists) {
+                Alert.alert('Error', 'Queue not found.');
+                return;
+            }
+
             // Update the queue status to "finished"
             await firestore
                 .collection('businesses')
@@ -77,11 +100,14 @@ export default function ManageQueuesPage() {
                     status: 'finished',
                 });
 
+            console.log('Queue marked as finished:', queueId);
+
             // Remove the queue from the local state
             setQueues(prevQueues => prevQueues.filter(queue => queue.id !== queueId));
 
             Alert.alert('Success', 'Queue marked as finished.');
         } catch (error) {
+            console.error('Error updating queue:', error.message);
             Alert.alert('Error', error.message);
         } finally {
             setLoading(false);

@@ -22,6 +22,7 @@ function DashboardHome() {
         { id: '2', title: 'View Users' },
         { id: '3', title: 'Manage Businesses', pagename: 'ManageBusinessesPage' },
         { id: '4', title: 'Business List', pagename: 'BusinessListPage' },
+        { id: '5', title: 'My Queues', pagename: 'MyQueuesPage' },
     ];
 
     const renderItem = ({ item }) => (

@@ -4,6 +4,7 @@ import '@react-native-firebase/firestore';
 
 if (!firebase.apps.length) {
   firebase.initializeApp();
+  firebase.firestore().setLogLevel('debug');
 }
 
 export const auth = firebase.auth();
