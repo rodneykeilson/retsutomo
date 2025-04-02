@@ -22,10 +22,14 @@ export default function ManageBusinessesPage() {
                 const user = auth.currentUser;
                 if (user) {
                     const profileDoc = await firestore.collection('profiles').doc(user.uid).get();
-                    if (profileDoc.exists && profileDoc.data().business) {
-                        setIsBusinessRegistered(true);
-                        setBusinessName(profileDoc.data().business.name);
-                        setBusinessDescription(profileDoc.data().business.description);
+                    if (profileDoc.exists && profileDoc.data().businessId) {
+                        const businessId = profileDoc.data().businessId;
+                        const businessDoc = await firestore.collection('businesses').doc(businessId).get();
+                        if (businessDoc.exists) {
+                            setIsBusinessRegistered(true);
+                            setBusinessName(businessDoc.data().name);
+                            setBusinessDescription(businessDoc.data().description);
+                        }
                     }
                 }
             } catch (error) {
@@ -41,12 +45,18 @@ export default function ManageBusinessesPage() {
             setLoading(true);
             const user = auth.currentUser;
             if (user) {
-                await firestore.collection('profiles').doc(user.uid).update({
-                    business: {
-                        name: businessName,
-                        description: businessDescription,
-                    },
+                // Add the business to the `businesses` collection
+                const businessRef = await firestore.collection('businesses').add({
+                    name: businessName,
+                    description: businessDescription,
+                    ownerId: user.uid, // Link the business to the user
                 });
+
+                // Update the user's profile with the business ID
+                await firestore.collection('profiles').doc(user.uid).update({
+                    businessId: businessRef.id,
+                });
+
                 setIsBusinessRegistered(true);
                 Alert.alert('Success', 'Business registered successfully!');
             }
