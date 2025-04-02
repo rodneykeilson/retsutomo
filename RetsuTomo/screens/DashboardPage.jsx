@@ -8,6 +8,7 @@ import {
     FlatList,
 } from 'react-native';
 
+import { useNavigation } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 
 import ProfilePage from './ProfilePage';
@@ -15,14 +16,15 @@ import ProfilePage from './ProfilePage';
 const Drawer = createDrawerNavigator();
 
 function DashboardHome() {
+    const navigation = useNavigation();
     const data = [
-        { id: '1', title: 'Manage Queues' },
+        { id: '1', title: 'Manage Queues', pagename: 'ManageQueuesPage' },
         { id: '2', title: 'View Users' },
-        { id: '3', title: 'Manage Businesses' },
+        { id: '3', title: 'Manage Businesses', pagename: 'ManageBusinessesPage' },
     ];
 
     const renderItem = ({ item }) => (
-        <TouchableOpacity style={styles.card}>
+        <TouchableOpacity style={styles.card} onPress={() => navigation.navigate(item.pagename)}>
             <Text style={styles.cardText}>{item.title}</Text>
         </TouchableOpacity>
     );
