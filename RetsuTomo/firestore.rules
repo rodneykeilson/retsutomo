@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Basic rule: users must be authenticated to read/write
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Users collection rules
+    match /users/{userId} {
+      // Users can only read/write their own data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow access to subcollections for the user
+      match /activeQueues/{queueId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // Businesses collection rules
+    match /businesses/{businessId} {
+      // Anyone can read business data
+      allow read: if request.auth != null;
+      
+      // Only business owners can update their business
+      allow create, update, delete: if request.auth != null && 
+                                     (request.resource.data.ownerId == request.auth.uid || 
+                                      resource.data.ownerId == request.auth.uid);
+      
+      // Queue subcollection rules
+      match /queues/{queueId} {
+        // Anyone can read queue data
+        allow read: if request.auth != null;
+        
+        // Business owners can manage all queues
+        allow write: if request.auth != null && 
+                      (get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid);
+        
+        // Users can create their own queue entries and update/delete only their own
+        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      }
+    }
+  }
+}

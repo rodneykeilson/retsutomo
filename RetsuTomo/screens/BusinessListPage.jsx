@@ -10,30 +10,48 @@ import {
     Alert,
     StatusBar,
     Image,
+    ActivityIndicator,
 } from 'react-native';
 import { firestore } from '../services/firebase';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import sampleDataService from '../services/sampleData';
 
 export default function BusinessListPage() {
     const [businesses, setBusinesses] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredBusinesses, setFilteredBusinesses] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [categories, setCategories] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState('All');
     const navigation = useNavigation();
 
     useEffect(() => {
         const fetchBusinesses = async () => {
             try {
                 setLoading(true);
-                const snapshot = await firestore.collection('businesses').get();
-                const businessData = snapshot.docs.map(doc => ({
+                
+                // Check if we need to populate sample data
+                const snapshot = await firestore.collection('businesses').limit(1).get();
+                if (snapshot.empty) {
+                    await sampleDataService.populateSampleData();
+                }
+                
+                // Fetch businesses
+                const businessSnapshot = await firestore.collection('businesses').get();
+                const businessData = businessSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data(),
                 }));
+                
+                // Extract unique categories
+                const uniqueCategories = ['All', ...new Set(businessData.map(business => business.category).filter(Boolean))];
+                
                 setBusinesses(businessData);
                 setFilteredBusinesses(businessData);
+                setCategories(uniqueCategories);
             } catch (error) {
+                console.error('Error fetching businesses:', error);
                 Alert.alert('Error', error.message);
             } finally {
                 setLoading(false);
@@ -45,24 +63,72 @@ export default function BusinessListPage() {
 
     const handleSearch = (query) => {
         setSearchQuery(query);
-        if (query.trim() === '') {
-            setFilteredBusinesses(businesses);
-        } else {
-            const filtered = businesses.filter(business =>
-                business.name.toLowerCase().includes(query.toLowerCase())
+        filterBusinesses(query, selectedCategory);
+    };
+    
+    const handleCategorySelect = (category) => {
+        setSelectedCategory(category);
+        filterBusinesses(searchQuery, category);
+    };
+    
+    const filterBusinesses = (query, category) => {
+        let filtered = businesses;
+        
+        // Apply category filter
+        if (category && category !== 'All') {
+            filtered = filtered.filter(business => business.category === category);
+        }
+        
+        // Apply search query filter
+        if (query.trim() !== '') {
+            filtered = filtered.filter(business =>
+                business.name.toLowerCase().includes(query.toLowerCase()) ||
+                (business.description && business.description.toLowerCase().includes(query.toLowerCase()))
             );
-            setFilteredBusinesses(filtered);
+        }
+        
+        setFilteredBusinesses(filtered);
+    };
+
+    const handleSelectBusiness = async (business) => {
+        try {
+            // Check if the business is open
+            if (business.status !== 'open') {
+                Alert.alert('Business Closed', 'This business is currently not accepting new queue entries.');
+                return;
+            }
+            
+            // Navigate to queue page
+            navigation.navigate('QueuePage', { businessId: business.id, businessName: business.name });
+        } catch (error) {
+            console.error('Error selecting business:', error);
+            Alert.alert('Error', 'Failed to select business');
         }
     };
 
-    const handleSelectBusiness = (businessId) => {
-        navigation.navigate('QueuePage', { businessId });
-    };
+    const renderCategoryItem = ({ item }) => (
+        <TouchableOpacity
+            style={[
+                styles.categoryChip,
+                selectedCategory === item && styles.categoryChipSelected
+            ]}
+            onPress={() => handleCategorySelect(item)}
+        >
+            <Text 
+                style={[
+                    styles.categoryChipText,
+                    selectedCategory === item && styles.categoryChipTextSelected
+                ]}
+            >
+                {item}
+            </Text>
+        </TouchableOpacity>
+    );
 
     const renderItem = ({ item }) => (
         <TouchableOpacity
             style={styles.card}
-            onPress={() => handleSelectBusiness(item.id)}
+            onPress={() => handleSelectBusiness(item)}
         >
             <View style={styles.cardContent}>
                 <View style={[styles.businessIcon, { backgroundColor: getRandomColor(item.id) }]}>
@@ -72,7 +138,24 @@ export default function BusinessListPage() {
                 </View>
                 <View style={styles.businessInfo}>
                     <Text style={styles.cardTitle}>{item.name}</Text>
-                    <Text style={styles.cardDescription}>{item.description}</Text>
+                    <Text style={styles.cardCategory}>{item.category || 'General'}</Text>
+                    <Text style={styles.cardDescription} numberOfLines={2}>
+                        {item.description}
+                    </Text>
+                    <View style={styles.businessStatusContainer}>
+                        <View style={[
+                            styles.statusIndicator, 
+                            { backgroundColor: item.status === 'open' ? '#43A047' : '#F44336' }
+                        ]} />
+                        <Text style={styles.businessStatusText}>
+                            {item.status === 'open' ? 'Open' : 'Closed'}
+                        </Text>
+                        {item.estimatedTimePerCustomer && (
+                            <Text style={styles.estimatedTimeText}>
+                                • ~{item.estimatedTimePerCustomer} mins per customer
+                            </Text>
+                        )}
+                    </View>
                 </View>
             </View>
             <View style={styles.cardAction}>
@@ -91,7 +174,10 @@ export default function BusinessListPage() {
     const renderEmptyList = () => (
         <View style={styles.emptyContainer}>
             {loading ? (
-                <Text style={styles.emptyText}>Loading businesses...</Text>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#56409e" />
+                    <Text style={styles.loadingText}>Loading businesses...</Text>
+                </View>
             ) : (
                 <>
                     <Icon name="store-search" size={60} color="#d8dffe" />
@@ -109,9 +195,17 @@ export default function BusinessListPage() {
             <StatusBar backgroundColor="#f5f5f5" barStyle="dark-content" />
             
             <View style={styles.header}>
-                <View style={styles.titleContainer}>
-                    <Text style={styles.title}>Businesses</Text>
-                    <Text style={styles.subtitle}>Find and join queues</Text>
+                <View style={styles.titleRow}>
+                    <TouchableOpacity 
+                        style={styles.backButton}
+                        onPress={() => navigation.goBack()}
+                    >
+                        <Icon name="arrow-left" size={24} color="#281b52" />
+                    </TouchableOpacity>
+                    <View style={styles.titleContainer}>
+                        <Text style={styles.title}>Businesses</Text>
+                        <Text style={styles.subtitle}>Find and join queues</Text>
+                    </View>
                 </View>
             </View>
             
@@ -133,6 +227,17 @@ export default function BusinessListPage() {
                     </TouchableOpacity>
                 )}
             </View>
+            
+            {categories.length > 0 && (
+                <FlatList
+                    data={categories}
+                    renderItem={renderCategoryItem}
+                    keyExtractor={item => item}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.categoryList}
+                />
+            )}
             
             <FlatList
                 data={filteredBusinesses}
@@ -156,8 +261,22 @@ const styles = StyleSheet.create({
         paddingTop: 20,
         paddingBottom: 10,
     },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    backButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#fff',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+        elevation: 2,
+    },
     titleContainer: {
-        marginBottom: 8,
+        flex: 1,
     },
     title: {
         fontSize: 24,
@@ -192,6 +311,31 @@ const styles = StyleSheet.create({
     },
     clearButton: {
         padding: 4,
+    },
+    categoryList: {
+        paddingHorizontal: 24,
+        marginBottom: 8,
+    },
+    categoryChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+    },
+    categoryChipSelected: {
+        backgroundColor: '#56409e',
+        borderColor: '#56409e',
+    },
+    categoryChipText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#281b52',
+    },
+    categoryChipTextSelected: {
+        color: '#fff',
     },
     list: {
         paddingHorizontal: 24,
@@ -232,11 +376,42 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#281b52',
     },
+    cardCategory: {
+        fontSize: 12,
+        color: '#56409e',
+        backgroundColor: '#f0eeff',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+        alignSelf: 'flex-start',
+        marginTop: 4,
+    },
     cardDescription: {
         fontSize: 14,
         fontWeight: '400',
         color: '#9992a7',
         marginTop: 4,
+    },
+    businessStatusContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    statusIndicator: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginRight: 6,
+    },
+    businessStatusText: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: '#281b52',
+    },
+    estimatedTimeText: {
+        fontSize: 12,
+        color: '#9992a7',
+        marginLeft: 6,
     },
     cardAction: {
         marginLeft: 8,
@@ -245,6 +420,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 60,
+    },
+    loadingContainer: {
+        alignItems: 'center',
+    },
+    loadingText: {
+        fontSize: 16,
+        color: '#56409e',
+        marginTop: 16,
     },
     emptyTitle: {
         fontSize: 18,
