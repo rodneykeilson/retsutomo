@@ -41,6 +41,7 @@ function OngoingQueues() {
                 setOngoingQueues(ongoing);
             } catch (error) {
                 Alert.alert('Error', error.message);
+                console.log(error.message)
             } finally {
                 setLoading(false);
             }
