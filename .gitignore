@@ -17,6 +17,10 @@ android/.idea/
 android/local.properties
 android/.cxx/
 *.keystore
+**/retsutomo-release-key.keystore
+**/release/
+**/keystore.properties
+**/gradle.properties
 
 # Build directories
 build/

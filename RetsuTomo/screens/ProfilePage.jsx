@@ -13,8 +13,10 @@ import {
 } from 'react-native';
 import { auth, firestore } from '../services/firebase';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
 
 export default function ProfilePage() {
+    const navigation = useNavigation();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
@@ -61,7 +63,10 @@ export default function ProfilePage() {
     const handleSignOut = async () => {
         try {
             await auth.signOut();
-            // Navigate to login page
+            navigation.reset({
+                index: 0,
+                routes: [{ name: 'LandingPage' }],
+            });
         } catch (error) {
             Alert.alert('Error', error.message);
         }
