@@ -1,22 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   SafeAreaView,
   TouchableOpacity,
-  Image,
   StatusBar,
+  Image,
   ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { auth } from '../services/firebase';
+import { useTheme } from '../theme/ThemeContext';
 import landing from '../assets/images/retsutomo-landing-page.png';
 
 export default function LandingPage() {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const [currentPage, setCurrentPage] = useState(0);
-  
+
   const onboardingPages = [
     {
       title: "Welcome to RetsuTomo",
@@ -34,7 +37,7 @@ export default function LandingPage() {
       icon: "account-clock",
     }
   ];
-  
+
   const nextPage = () => {
     if (currentPage < onboardingPages.length - 1) {
       setCurrentPage(currentPage + 1);
@@ -43,11 +46,30 @@ export default function LandingPage() {
     }
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor="#d8dffe" barStyle="dark-content" />
+  useEffect(() => {
+    const checkAuthState = () => {
+      const unsubscribe = auth.onAuthStateChanged(user => {
+        if (user) {
+          // User is signed in, navigate to MainApp
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'MainApp' }],
+          });
+        }
+      });
       
-      <View style={styles.hero}>
+      return unsubscribe;
+    };
+    
+    const unsubscribe = checkAuthState();
+    return () => unsubscribe();
+  }, [navigation]);
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
+      
+      <View style={[styles.hero, { backgroundColor: theme.primaryLight }]}>
         <Image
           source={landing}
           style={styles.heroImage}
@@ -57,27 +79,27 @@ export default function LandingPage() {
       
       <View style={styles.content}>
         <View style={styles.contentHeader}>
-          <Text style={styles.appTitle}>RetsuTomo</Text>
-          <Text style={styles.title}>{onboardingPages[currentPage].title}</Text>
-          <Text style={styles.text}>
+          <Text style={[styles.appTitle, { color: theme.primary }]}>RetsuTomo</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{onboardingPages[currentPage].title}</Text>
+          <Text style={[styles.text, { color: theme.secondaryText }]}>
             {onboardingPages[currentPage].description}
           </Text>
         </View>
         
         <View style={styles.featureContainer}>
-          <View style={styles.featureCard}>
-            <Icon name="store" size={24} color="#56409e" style={styles.featureIcon} />
-            <Text style={styles.featureTitle}>Manage Business Queues</Text>
+          <View style={[styles.featureCard, { backgroundColor: theme.card }]}>
+            <Icon name="store" size={24} color={theme.primary} style={styles.featureIcon} />
+            <Text style={[styles.featureTitle, { color: theme.text }]}>Manage Business Queues</Text>
           </View>
           
-          <View style={styles.featureCard}>
-            <Icon name="account-multiple" size={24} color="#56409e" style={styles.featureIcon} />
-            <Text style={styles.featureTitle}>Join Queues Remotely</Text>
+          <View style={[styles.featureCard, { backgroundColor: theme.card }]}>
+            <Icon name="account-multiple" size={24} color={theme.primary} style={styles.featureIcon} />
+            <Text style={[styles.featureTitle, { color: theme.text }]}>Join Queues Remotely</Text>
           </View>
           
-          <View style={styles.featureCard}>
-            <Icon name="bell-ring" size={24} color="#56409e" style={styles.featureIcon} />
-            <Text style={styles.featureTitle}>Real-time Notifications</Text>
+          <View style={[styles.featureCard, { backgroundColor: theme.card }]}>
+            <Icon name="bell-ring" size={24} color={theme.primary} style={styles.featureIcon} />
+            <Text style={[styles.featureTitle, { color: theme.text }]}>Real-time Notifications</Text>
           </View>
         </View>
 
@@ -87,14 +109,15 @@ export default function LandingPage() {
               key={index} 
               style={[
                 styles.paginationDot, 
-                currentPage === index && styles.paginationDotActive
+                { backgroundColor: theme.isDarkMode ? '#444444' : '#d8dffe' },
+                currentPage === index && [styles.paginationDotActive, { backgroundColor: theme.primary }]
               ]} 
             />
           ))}
         </View>
 
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, { backgroundColor: theme.primary }]}
           onPress={nextPage}>
           <Text style={styles.buttonText}>
             {currentPage < onboardingPages.length - 1 ? "Next" : "Get Started"}
@@ -106,7 +129,7 @@ export default function LandingPage() {
           <TouchableOpacity
             style={styles.skipButton}
             onPress={() => navigation.navigate('LoginPage')}>
-            <Text style={styles.skipButtonText}>Skip</Text>
+            <Text style={[styles.skipButtonText, { color: theme.secondaryText }]}>Skip</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -117,10 +140,8 @@ export default function LandingPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   hero: {
-    backgroundColor: '#d8dffe',
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     padding: 16,
@@ -144,13 +165,11 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#56409e',
     marginBottom: 8,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#281b52',
     textAlign: 'center',
     marginBottom: 12,
   },
@@ -158,7 +177,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '400',
-    color: '#9992a7',
     textAlign: 'center',
   },
   featureContainer: {
@@ -167,7 +185,6 @@ const styles = StyleSheet.create({
   featureCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -178,7 +195,6 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#281b52',
   },
   paginationContainer: {
     flexDirection: 'row',
@@ -189,15 +205,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#d8dffe',
     marginHorizontal: 4,
   },
   paginationDotActive: {
-    backgroundColor: '#56409e',
     width: 20,
   },
   button: {
-    backgroundColor: '#56409e',
     paddingVertical: 16,
     paddingHorizontal: 20,
     alignItems: 'center',
@@ -206,21 +219,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   buttonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    marginRight: 8,
   },
   buttonIcon: {
-    marginLeft: 8,
+    marginLeft: 4,
   },
   skipButton: {
     alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 16,
   },
   skipButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#9992a7',
   },
 });

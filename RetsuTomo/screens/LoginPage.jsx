@@ -17,9 +17,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { auth } from '../services/firebase'; // Import Firebase auth
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function LoginPage() {
     const navigation = useNavigation();
+    const { theme } = useTheme();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -44,8 +46,8 @@ export default function LoginPage() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar backgroundColor="#f5f5f5" barStyle="dark-content" />
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+            <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
@@ -55,18 +57,18 @@ export default function LoginPage() {
                     showsVerticalScrollIndicator={false}
                 >
                     <View style={styles.header}>
-                        <Text style={styles.appName}>RetsuTomo</Text>
-                        <Text style={styles.title}>Welcome Back!</Text>
-                        <Text style={styles.subtitle}>Log in to continue</Text>
+                        <Text style={[styles.appName, { color: theme.primary }]}>RetsuTomo</Text>
+                        <Text style={[styles.title, { color: theme.text }]}>Welcome Back!</Text>
+                        <Text style={[styles.subtitle, { color: theme.secondaryText }]}>Log in to continue</Text>
                     </View>
                     
                     <View style={styles.formContainer}>
-                        <View style={styles.inputContainer}>
-                            <Icon name="email-outline" size={20} color="#9992a7" style={styles.inputIcon} />
+                        <View style={[styles.inputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Icon name="email-outline" size={20} color={theme.secondaryText} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: theme.text }]}
                                 placeholder="Email"
-                                placeholderTextColor="#9992a7"
+                                placeholderTextColor={theme.secondaryText}
                                 keyboardType="email-address"
                                 value={email}
                                 onChangeText={setEmail}
@@ -74,12 +76,12 @@ export default function LoginPage() {
                             />
                         </View>
                         
-                        <View style={styles.inputContainer}>
-                            <Icon name="lock-outline" size={20} color="#9992a7" style={styles.inputIcon} />
+                        <View style={[styles.inputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Icon name="lock-outline" size={20} color={theme.secondaryText} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: theme.text }]}
                                 placeholder="Password"
-                                placeholderTextColor="#9992a7"
+                                placeholderTextColor={theme.secondaryText}
                                 secureTextEntry={!showPassword}
                                 value={password}
                                 onChangeText={setPassword}
@@ -92,7 +94,7 @@ export default function LoginPage() {
                                 <Icon 
                                     name={showPassword ? "eye-off-outline" : "eye-outline"} 
                                     size={20} 
-                                    color="#9992a7" 
+                                    color={theme.secondaryText} 
                                 />
                             </TouchableOpacity>
                         </View>
@@ -101,11 +103,15 @@ export default function LoginPage() {
                             style={styles.forgotPasswordLink}
                             onPress={() => navigation.navigate('ForgotPasswordPage')}
                         >
-                            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                            <Text style={[styles.forgotPasswordText, { color: theme.primary }]}>Forgot Password?</Text>
                         </TouchableOpacity>
                         
                         <TouchableOpacity 
-                            style={[styles.button, loading && styles.buttonDisabled]} 
+                            style={[
+                                styles.button, 
+                                loading && styles.buttonDisabled,
+                                { backgroundColor: loading ? theme.isDarkMode ? '#6b5bb6' : '#a99fd6' : theme.primary }
+                            ]} 
                             onPress={handleLogin}
                             disabled={loading}
                         >
@@ -120,11 +126,11 @@ export default function LoginPage() {
                     </View>
                     
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>
+                        <Text style={[styles.footerText, { color: theme.secondaryText }]}>
                             Don't have an account?
                         </Text>
                         <TouchableOpacity onPress={() => navigation.navigate('RegisterPage')}>
-                            <Text style={styles.signUpLink}>Sign Up</Text>
+                            <Text style={[styles.signUpLink, { color: theme.primary }]}>Sign Up</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
@@ -136,7 +142,6 @@ export default function LoginPage() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
     },
     scrollContent: {
         flexGrow: 1,
@@ -151,19 +156,16 @@ const styles = StyleSheet.create({
     appName: {
         fontSize: 22,
         fontWeight: '800',
-        color: '#56409e',
         marginBottom: 24,
     },
     title: {
         fontSize: 28,
         fontWeight: '700',
-        color: '#281b52',
         textAlign: 'center',
     },
     subtitle: {
         fontSize: 16,
         fontWeight: '400',
-        color: '#9992a7',
         textAlign: 'center',
         marginTop: 8,
     },
@@ -173,11 +175,9 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
         borderRadius: 12,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#e0e0e0',
         height: 56,
     },
     inputIcon: {
@@ -188,7 +188,6 @@ const styles = StyleSheet.create({
         flex: 1,
         height: '100%',
         fontSize: 16,
-        color: '#281b52',
         paddingRight: 16,
     },
     passwordToggle: {
@@ -201,10 +200,8 @@ const styles = StyleSheet.create({
     forgotPasswordText: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#56409e',
     },
     button: {
-        backgroundColor: '#56409e',
         paddingVertical: 16,
         borderRadius: 12,
         alignItems: 'center',
@@ -212,7 +209,6 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     buttonDisabled: {
-        backgroundColor: '#a99fd6',
     },
     buttonText: {
         fontSize: 16,
@@ -234,12 +230,10 @@ const styles = StyleSheet.create({
     footerText: {
         fontSize: 14,
         fontWeight: '400',
-        color: '#9992a7',
         marginRight: 4,
     },
     signUpLink: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#56409e',
     },
 });

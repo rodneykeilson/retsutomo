@@ -7,59 +7,170 @@ import {
     TextInput,
     TouchableOpacity,
     Alert,
+    StatusBar,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
 } from 'react-native';
-
 import { useNavigation } from '@react-navigation/native';
-import { auth } from '../services/firebase';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { auth, firestore } from '../services/firebase';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function RegisterPage() {
     const navigation = useNavigation();
+    const { theme } = useTheme();
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const handleSignUp = async () => {
+    const handleRegister = async () => {
+        if (!name || !email || !password || !confirmPassword) {
+            Alert.alert('Error', 'Please fill in all fields');
+            return;
+        }
+        
+        if (password !== confirmPassword) {
+            Alert.alert('Error', 'Passwords do not match');
+            return;
+        }
+        
         try {
-            await auth.createUserWithEmailAndPassword(email, password);
-            Alert.alert('Success', 'Account created successfully!');
-            navigation.navigate('LoginPage');
+            setLoading(true);
+            // Create user with email and password
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            
+            // Save additional user data to Firestore
+            await firestore.collection('profiles').doc(userCredential.user.uid).set({
+                name,
+                email,
+                createdAt: new Date(),
+            });
+            
+            // Navigate to MainApp
+            navigation.navigate('MainApp');
         } catch (error) {
             Alert.alert('Error', error.message);
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>Create an Account</Text>
-                <Text style={styles.subtitle}>Sign up to get started</Text>
-            </View>
-            <View style={styles.form}>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Email"
-                    placeholderTextColor="#9992a7"
-                    keyboardType="email-address"
-                    value={email}
-                    onChangeText={setEmail}
-                />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Password"
-                    placeholderTextColor="#9992a7"
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                />
-                <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-                    <Text style={styles.buttonText}>Sign Up</Text>
-                </TouchableOpacity>
-            </View>
-            <View style={styles.footer}>
-                <Text style={styles.footerText}>
-                    Already have an account?{' '}
-                    <Text onPress={() => navigation.navigate('LoginPage')} style={styles.link}>Log In</Text>
-                </Text>
-            </View>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+            <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ScrollView 
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <View style={styles.header}>
+                        <Text style={[styles.appName, { color: theme.primary }]}>RetsuTomo</Text>
+                        <Text style={[styles.title, { color: theme.text }]}>Create Account</Text>
+                        <Text style={[styles.subtitle, { color: theme.secondaryText }]}>Sign up to get started</Text>
+                    </View>
+                    
+                    <View style={styles.formContainer}>
+                        <View style={[styles.inputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Icon name="account-outline" size={20} color={theme.secondaryText} style={styles.inputIcon} />
+                            <TextInput
+                                style={[styles.input, { color: theme.text }]}
+                                placeholder="Full Name"
+                                placeholderTextColor={theme.secondaryText}
+                                value={name}
+                                onChangeText={setName}
+                            />
+                        </View>
+                        
+                        <View style={[styles.inputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Icon name="email-outline" size={20} color={theme.secondaryText} style={styles.inputIcon} />
+                            <TextInput
+                                style={[styles.input, { color: theme.text }]}
+                                placeholder="Email"
+                                placeholderTextColor={theme.secondaryText}
+                                keyboardType="email-address"
+                                value={email}
+                                onChangeText={setEmail}
+                                autoCapitalize="none"
+                            />
+                        </View>
+                        
+                        <View style={[styles.inputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Icon name="lock-outline" size={20} color={theme.secondaryText} style={styles.inputIcon} />
+                            <TextInput
+                                style={[styles.input, { color: theme.text }]}
+                                placeholder="Password"
+                                placeholderTextColor={theme.secondaryText}
+                                secureTextEntry={!showPassword}
+                                value={password}
+                                onChangeText={setPassword}
+                                autoCapitalize="none"
+                            />
+                            <TouchableOpacity 
+                                style={styles.passwordToggle}
+                                onPress={() => setShowPassword(!showPassword)}
+                            >
+                                <Icon 
+                                    name={showPassword ? "eye-off-outline" : "eye-outline"} 
+                                    size={20} 
+                                    color={theme.secondaryText} 
+                                />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <View style={[styles.inputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Icon name="lock-check-outline" size={20} color={theme.secondaryText} style={styles.inputIcon} />
+                            <TextInput
+                                style={[styles.input, { color: theme.text }]}
+                                placeholder="Confirm Password"
+                                placeholderTextColor={theme.secondaryText}
+                                secureTextEntry={!showConfirmPassword}
+                                value={confirmPassword}
+                                onChangeText={setConfirmPassword}
+                                autoCapitalize="none"
+                            />
+                            <TouchableOpacity 
+                                style={styles.passwordToggle}
+                                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                                <Icon 
+                                    name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} 
+                                    size={20} 
+                                    color={theme.secondaryText}
+                                />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <TouchableOpacity 
+                            style={[styles.button, { backgroundColor: theme.primary }]} 
+                            onPress={handleRegister}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <Text style={styles.buttonText}>Creating Account...</Text>
+                            ) : (
+                                <Text style={styles.buttonText}>Sign Up</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                    
+                    <View style={styles.footer}>
+                        <Text style={[styles.footerText, { color: theme.secondaryText }]}>
+                            Already have an account?
+                        </Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('LoginPage')}>
+                            <Text style={[styles.loginLink, { color: theme.primary }]}>Log In</Text>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -67,66 +178,84 @@ export default function RegisterPage() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 24,
-        backgroundColor: '#f5f5f5',
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingHorizontal: 24,
+        paddingBottom: 24,
     },
     header: {
-        marginBottom: 32,
+        marginTop: 40,
+        marginBottom: 40,
         alignItems: 'center',
+    },
+    appName: {
+        fontSize: 22,
+        fontWeight: '800',
+        marginBottom: 24,
     },
     title: {
         fontSize: 28,
         fontWeight: '700',
-        color: '#281b52',
         textAlign: 'center',
     },
     subtitle: {
         fontSize: 16,
         fontWeight: '400',
-        color: '#9992a7',
         textAlign: 'center',
         marginTop: 8,
     },
-    form: {
-        flex: 1,
-        justifyContent: 'center',
+    formContainer: {
+        width: '100%',
     },
-    input: {
-        backgroundColor: '#fff',
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
         borderRadius: 12,
-        padding: 16,
-        fontSize: 16,
-        color: '#281b52',
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#d8dffe',
+        height: 56,
+    },
+    inputIcon: {
+        marginLeft: 16,
+        marginRight: 8,
+    },
+    input: {
+        flex: 1,
+        height: '100%',
+        fontSize: 16,
+        paddingRight: 16,
+    },
+    passwordToggle: {
+        padding: 16,
     },
     button: {
-        backgroundColor: '#56409e',
-        paddingVertical: 14,
+        paddingVertical: 16,
         borderRadius: 12,
         alignItems: 'center',
+        marginTop: 8,
         marginBottom: 16,
+        elevation: 2,
     },
     buttonText: {
         fontSize: 16,
-        fontWeight: '500',
+        fontWeight: '600',
         color: '#fff',
     },
-    link: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#56409e',
-        textAlign: 'center',
-        marginTop: 8,
-    },
     footer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 16,
+        marginTop: 'auto',
+        paddingVertical: 16,
     },
     footerText: {
         fontSize: 14,
         fontWeight: '400',
-        color: '#9992a7',
+        marginRight: 4,
+    },
+    loginLink: {
+        fontSize: 14,
+        fontWeight: '600',
     },
 });

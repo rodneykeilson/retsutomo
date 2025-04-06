@@ -1,9 +1,10 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, StatusBar } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { ThemeProvider, useTheme } from './theme/ThemeContext';
 
 import LandingPage from './screens/LandingPage';
 import LoginPage from './screens/LoginPage';
@@ -22,6 +23,8 @@ const Tab = createBottomTabNavigator();
 
 // Custom tab bar indicator
 const TabBarIndicator = ({ state, descriptors, navigation }) => {
+  const { theme } = useTheme();
+  
   return (
     <View style={styles.tabBarIndicator}>
       <View 
@@ -30,6 +33,7 @@ const TabBarIndicator = ({ state, descriptors, navigation }) => {
           { 
             left: `${(100 / state.routes.length) * state.index}%`,
             width: `${100 / state.routes.length}%`,
+            backgroundColor: theme.primary,
           }
         ]} 
       />
@@ -39,13 +43,19 @@ const TabBarIndicator = ({ state, descriptors, navigation }) => {
 
 // Main tab navigator for authenticated users
 function MainTabs() {
+  const { theme } = useTheme();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#56409e',
-        tabBarInactiveTintColor: '#9992a7',
-        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.secondaryText,
+        tabBarStyle: {
+          ...styles.tabBar,
+          backgroundColor: theme.card,
+          borderTopColor: theme.border,
+        },
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
@@ -80,22 +90,57 @@ function MainTabs() {
   );
 }
 
+// Create custom navigation themes
+const createCustomTheme = (baseTheme, appTheme) => {
+  return {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      primary: appTheme.primary,
+      background: appTheme.background,
+      card: appTheme.card,
+      text: appTheme.text,
+      border: appTheme.border,
+    },
+  };
+};
+
+// App component with theme support
+function AppContent() {
+  const { theme, isDarkMode } = useTheme();
+  
+  // Create navigation theme based on current app theme
+  const navigationTheme = createCustomTheme(
+    isDarkMode ? DarkTheme : DefaultTheme,
+    theme
+  );
+  
+  return (
+    <>
+      <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
+      <NavigationContainer theme={navigationTheme}>
+        <Stack.Navigator initialRouteName="LandingPage" screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="LandingPage" component={LandingPage} />
+          <Stack.Screen name="LoginPage" component={LoginPage} />
+          <Stack.Screen name="RegisterPage" component={RegisterPage} />
+          <Stack.Screen name="ForgotPasswordPage" component={ForgotPasswordPage} />
+          <Stack.Screen name="MainApp" component={MainTabs} />
+          <Stack.Screen name="ManageQueuesPage" component={ManageQueuesPage} />
+          <Stack.Screen name="ManageBusinessesPage" component={ManageBusinessesPage} />
+          <Stack.Screen name="QueuePage" component={QueuePage} />
+          <Stack.Screen name="MyQueuesPage" component={MyQueuesPage} />
+          <Stack.Screen name="BusinessListPage" component={BusinessListPage} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </>
+  );
+}
+
 export default function App() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="LandingPage" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="LandingPage" component={LandingPage} />
-        <Stack.Screen name="LoginPage" component={LoginPage} />
-        <Stack.Screen name="RegisterPage" component={RegisterPage} />
-        <Stack.Screen name="ForgotPasswordPage" component={ForgotPasswordPage} />
-        <Stack.Screen name="MainApp" component={MainTabs} />
-        <Stack.Screen name="ManageQueuesPage" component={ManageQueuesPage} />
-        <Stack.Screen name="ManageBusinessesPage" component={ManageBusinessesPage} />
-        <Stack.Screen name="QueuePage" component={QueuePage} />
-        <Stack.Screen name="MyQueuesPage" component={MyQueuesPage} />
-        <Stack.Screen name="BusinessListPage" component={BusinessListPage} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 
@@ -103,9 +148,6 @@ const styles = StyleSheet.create({
   tabBar: {
     height: 60,
     elevation: 0,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
     paddingBottom: 5,
   },
   tabBarLabel: {
@@ -123,7 +165,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     height: 3,
     bottom: 0,
-    backgroundColor: '#56409e',
     borderTopLeftRadius: 3,
     borderTopRightRadius: 3,
   }

@@ -14,9 +14,12 @@ import {
 import { auth, firestore } from '../services/firebase';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../theme/ThemeContext';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function ProfilePage() {
     const navigation = useNavigation();
+    const { theme } = useTheme();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
@@ -73,55 +76,71 @@ export default function ProfilePage() {
     };
 
     const renderProfileHeader = () => (
-        <View style={styles.profileHeader}>
+        <View style={[styles.profileHeader, { backgroundColor: theme.card }]}>
             <View style={styles.avatarContainer}>
-                <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{name ? name.charAt(0).toUpperCase() : '?'}</Text>
+                <View style={[styles.avatar, { backgroundColor: theme.primaryLight }]}>
+                    <Text style={[styles.avatarText, { color: theme.primary }]}>{name ? name.charAt(0).toUpperCase() : '?'}</Text>
                 </View>
             </View>
             <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{name || 'User'}</Text>
-                <Text style={styles.profileEmail}>{email}</Text>
+                <Text style={[styles.profileName, { color: theme.text }]}>{name || 'User'}</Text>
+                <Text style={[styles.profileEmail, { color: theme.secondaryText }]}>{email}</Text>
             </View>
             {!isEditing && (
                 <TouchableOpacity 
-                    style={styles.editButton} 
+                    style={[styles.editButton, { backgroundColor: theme.primaryLight }]} 
                     onPress={() => setIsEditing(true)}
                 >
-                    <Icon name="pencil" size={20} color="#56409e" />
+                    <Icon name="pencil" size={20} color={theme.primary} />
                 </TouchableOpacity>
             )}
         </View>
     );
 
     const renderEditForm = () => (
-        <View style={styles.editForm}>
-            <Text style={styles.formLabel}>Name</Text>
+        <View style={[styles.editForm, { backgroundColor: theme.card }]}>
+            <Text style={[styles.formLabel, { color: theme.primary }]}>Name</Text>
             <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                    backgroundColor: theme.background, 
+                    color: theme.text,
+                    borderColor: theme.border 
+                }]}
                 placeholder="Your name"
-                placeholderTextColor="#9992a7"
+                placeholderTextColor={theme.secondaryText}
                 value={name}
                 onChangeText={setName}
             />
             
-            <Text style={styles.formLabel}>Email</Text>
+            <Text style={[styles.formLabel, { color: theme.primary }]}>Email</Text>
             <TextInput
-                style={[styles.input, styles.disabledInput]}
+                style={[
+                    styles.input, 
+                    styles.disabledInput, 
+                    { 
+                        backgroundColor: theme.isDarkMode ? '#2a2a2a' : '#f0f0f0',
+                        color: theme.secondaryText,
+                        borderColor: theme.border
+                    }
+                ]}
                 value={email}
                 editable={false}
             />
             
             <View style={styles.buttonRow}>
                 <TouchableOpacity
-                    style={[styles.button, styles.cancelButton]}
+                    style={[
+                        styles.button, 
+                        styles.cancelButton, 
+                        { backgroundColor: theme.isDarkMode ? '#2a2a2a' : '#f0f0f0' }
+                    ]}
                     onPress={() => setIsEditing(false)}
                 >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                    <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancel</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
-                    style={[styles.button, styles.saveButton]}
+                    style={[styles.button, styles.saveButton, { backgroundColor: theme.primary }]}
                     onPress={handleSaveProfile}
                     disabled={loading}
                 >
@@ -134,38 +153,41 @@ export default function ProfilePage() {
     );
 
     const renderProfileOptions = () => (
-        <View style={styles.optionsContainer}>
-            <TouchableOpacity style={styles.optionItem}>
-                <View style={styles.optionIconContainer}>
-                    <Icon name="bell-outline" size={24} color="#56409e" />
+        <View style={[styles.optionsContainer, { backgroundColor: theme.card }]}>
+            {/* Theme Toggle Option */}
+            <ThemeToggle />
+            
+            <TouchableOpacity style={[styles.optionItem, { borderBottomColor: theme.border }]}>
+                <View style={[styles.optionIconContainer, { backgroundColor: theme.primaryLight }]}>
+                    <Icon name="bell-outline" size={24} color={theme.primary} />
                 </View>
                 <View style={styles.optionContent}>
-                    <Text style={styles.optionTitle}>Notifications</Text>
-                    <Text style={styles.optionDescription}>Manage your notification preferences</Text>
+                    <Text style={[styles.optionTitle, { color: theme.text }]}>Notifications</Text>
+                    <Text style={[styles.optionDescription, { color: theme.secondaryText }]}>Manage your notification preferences</Text>
                 </View>
-                <Icon name="chevron-right" size={24} color="#9992a7" />
+                <Icon name="chevron-right" size={24} color={theme.secondaryText} />
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.optionItem}>
-                <View style={styles.optionIconContainer}>
-                    <Icon name="shield-outline" size={24} color="#56409e" />
+            <TouchableOpacity style={[styles.optionItem, { borderBottomColor: theme.border }]}>
+                <View style={[styles.optionIconContainer, { backgroundColor: theme.primaryLight }]}>
+                    <Icon name="shield-outline" size={24} color={theme.primary} />
                 </View>
                 <View style={styles.optionContent}>
-                    <Text style={styles.optionTitle}>Privacy</Text>
-                    <Text style={styles.optionDescription}>Manage your privacy settings</Text>
+                    <Text style={[styles.optionTitle, { color: theme.text }]}>Privacy</Text>
+                    <Text style={[styles.optionDescription, { color: theme.secondaryText }]}>Manage your privacy settings</Text>
                 </View>
-                <Icon name="chevron-right" size={24} color="#9992a7" />
+                <Icon name="chevron-right" size={24} color={theme.secondaryText} />
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.optionItem}>
-                <View style={styles.optionIconContainer}>
-                    <Icon name="help-circle-outline" size={24} color="#56409e" />
+            <TouchableOpacity style={[styles.optionItem, { borderBottomColor: theme.border }]}>
+                <View style={[styles.optionIconContainer, { backgroundColor: theme.primaryLight }]}>
+                    <Icon name="help-circle-outline" size={24} color={theme.primary} />
                 </View>
                 <View style={styles.optionContent}>
-                    <Text style={styles.optionTitle}>Help & Support</Text>
-                    <Text style={styles.optionDescription}>Get help with the app</Text>
+                    <Text style={[styles.optionTitle, { color: theme.text }]}>Help & Support</Text>
+                    <Text style={[styles.optionDescription, { color: theme.secondaryText }]}>Get help with the app</Text>
                 </View>
-                <Icon name="chevron-right" size={24} color="#9992a7" />
+                <Icon name="chevron-right" size={24} color={theme.secondaryText} />
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -183,12 +205,12 @@ export default function ProfilePage() {
     );
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar backgroundColor="#f5f5f5" barStyle="dark-content" />
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+            <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
             
             <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>Profile</Text>
+                    <Text style={[styles.title, { color: theme.text }]}>Profile</Text>
                 </View>
                 
                 {renderProfileHeader()}
@@ -202,7 +224,6 @@ export default function ProfilePage() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
     },
     header: {
         paddingHorizontal: 24,
@@ -211,12 +232,10 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: '700',
-        color: '#281b52',
     },
     profileHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
         marginHorizontal: 16,
         marginVertical: 8,
         padding: 16,
@@ -230,14 +249,12 @@ const styles = StyleSheet.create({
         width: 60,
         height: 60,
         borderRadius: 30,
-        backgroundColor: '#d8dffe',
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarText: {
         fontSize: 24,
         fontWeight: '700',
-        color: '#56409e',
     },
     profileInfo: {
         flex: 1,
@@ -245,23 +262,19 @@ const styles = StyleSheet.create({
     profileName: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#281b52',
     },
     profileEmail: {
         fontSize: 14,
-        color: '#9992a7',
         marginTop: 4,
     },
     editButton: {
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: '#f0eeff',
         justifyContent: 'center',
         alignItems: 'center',
     },
     editForm: {
-        backgroundColor: '#fff',
         marginHorizontal: 16,
         marginVertical: 8,
         padding: 16,
@@ -271,18 +284,14 @@ const styles = StyleSheet.create({
     formLabel: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#56409e',
         marginBottom: 8,
     },
     input: {
-        backgroundColor: '#f5f5f5',
         borderRadius: 12,
         padding: 14,
         fontSize: 16,
-        color: '#281b52',
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#e0e0e0',
     },
     disabledInput: {
         backgroundColor: '#f0f0f0',
@@ -310,7 +319,6 @@ const styles = StyleSheet.create({
     cancelButtonText: {
         fontSize: 16,
         fontWeight: '500',
-        color: '#281b52',
     },
     saveButtonText: {
         fontSize: 16,
@@ -318,7 +326,6 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
     optionsContainer: {
-        backgroundColor: '#fff',
         marginHorizontal: 16,
         marginVertical: 8,
         borderRadius: 16,
@@ -330,13 +337,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
     },
     optionIconContainer: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#f0eeff',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
@@ -347,11 +352,9 @@ const styles = StyleSheet.create({
     optionTitle: {
         fontSize: 16,
         fontWeight: '500',
-        color: '#281b52',
     },
     optionDescription: {
         fontSize: 14,
-        color: '#9992a7',
         marginTop: 2,
     },
     signOutOption: {

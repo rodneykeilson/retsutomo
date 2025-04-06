@@ -7,54 +7,122 @@ import {
     TextInput,
     TouchableOpacity,
     Alert,
+    StatusBar,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
 } from 'react-native';
-
 import { useNavigation } from '@react-navigation/native';
-import { auth } from '../services/firebase'; // Import Firebase auth
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { auth } from '../services/firebase';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function ForgotPasswordPage() {
     const navigation = useNavigation();
+    const { theme } = useTheme();
     const [email, setEmail] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [resetSent, setResetSent] = useState(false);
 
-    const handlePasswordReset = async () => {
+    const handleResetPassword = async () => {
+        if (!email) {
+            Alert.alert('Error', 'Please enter your email address');
+            return;
+        }
+        
         try {
+            setLoading(true);
             await auth.sendPasswordResetEmail(email);
-            Alert.alert('Success', 'Password reset link sent to your email!');
-            navigation.navigate('LoginPage');
+            setResetSent(true);
         } catch (error) {
             Alert.alert('Error', error.message);
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>Forgot Password?</Text>
-                <Text style={styles.subtitle}>
-                    Enter your email address and we'll send you a link to reset your password.
-                </Text>
-            </View>
-            <View style={styles.form}>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Email"
-                    placeholderTextColor="#9992a7"
-                    keyboardType="email-address"
-                    value={email}
-                    onChangeText={setEmail}
-                />
-                <TouchableOpacity style={styles.button} onPress={handlePasswordReset}>
-                    <Text style={styles.buttonText}>Send Reset Link</Text>
-                </TouchableOpacity>
-            </View>
-            <View style={styles.footer}>
-                <Text style={styles.footerText}>
-                    Remembered your password?{' '}
-                    <Text onPress={() => navigation.navigate('LoginPage')} style={styles.link}>
-                        Log In
-                    </Text>
-                </Text>
-            </View>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+            <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ScrollView 
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <View style={styles.header}>
+                        <TouchableOpacity 
+                            style={[styles.backButton, { backgroundColor: theme.card }]} 
+                            onPress={() => navigation.goBack()}
+                        >
+                            <Icon name="arrow-left" size={24} color={theme.text} />
+                        </TouchableOpacity>
+                        <Text style={[styles.appName, { color: theme.primary }]}>RetsuTomo</Text>
+                        <Text style={[styles.title, { color: theme.text }]}>Forgot Password</Text>
+                        <Text style={[styles.subtitle, { color: theme.secondaryText }]}>
+                            {resetSent 
+                                ? 'Check your email for reset instructions' 
+                                : 'Enter your email to receive a password reset link'}
+                        </Text>
+                    </View>
+                    
+                    {resetSent ? (
+                        <View style={styles.successContainer}>
+                            <View style={[styles.successIcon, { backgroundColor: theme.primaryLight }]}>
+                                <Icon name="email-check" size={40} color={theme.primary} />
+                            </View>
+                            <Text style={[styles.successTitle, { color: theme.text }]}>Email Sent!</Text>
+                            <Text style={[styles.successText, { color: theme.secondaryText }]}>
+                                We've sent password reset instructions to {email}. Please check your inbox.
+                            </Text>
+                            <TouchableOpacity 
+                                style={[styles.button, { backgroundColor: theme.primary }]} 
+                                onPress={() => navigation.navigate('LoginPage')}
+                            >
+                                <Text style={styles.buttonText}>Back to Login</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <View style={styles.formContainer}>
+                            <View style={[styles.inputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                                <Icon name="email-outline" size={20} color={theme.secondaryText} style={styles.inputIcon} />
+                                <TextInput
+                                    style={[styles.input, { color: theme.text }]}
+                                    placeholder="Email"
+                                    placeholderTextColor={theme.secondaryText}
+                                    keyboardType="email-address"
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    autoCapitalize="none"
+                                />
+                            </View>
+                            
+                            <TouchableOpacity 
+                                style={[styles.button, { backgroundColor: theme.primary }]} 
+                                onPress={handleResetPassword}
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <Text style={styles.buttonText}>Sending...</Text>
+                                ) : (
+                                    <Text style={styles.buttonText}>Reset Password</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                    
+                    <View style={styles.footer}>
+                        <Text style={[styles.footerText, { color: theme.secondaryText }]}>
+                            Remember your password?
+                        </Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('LoginPage')}>
+                            <Text style={[styles.loginLink, { color: theme.primary }]}>Log In</Text>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -62,66 +130,113 @@ export default function ForgotPasswordPage() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 24,
-        backgroundColor: '#f5f5f5',
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingHorizontal: 24,
+        paddingBottom: 24,
     },
     header: {
-        marginBottom: 32,
+        marginTop: 40,
+        marginBottom: 40,
         alignItems: 'center',
+    },
+    backButton: {
+        position: 'absolute',
+        left: 0,
+        top: -10,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    appName: {
+        fontSize: 22,
+        fontWeight: '800',
+        marginBottom: 24,
     },
     title: {
         fontSize: 28,
         fontWeight: '700',
-        color: '#281b52',
         textAlign: 'center',
     },
     subtitle: {
         fontSize: 16,
         fontWeight: '400',
-        color: '#9992a7',
         textAlign: 'center',
         marginTop: 8,
     },
-    form: {
-        flex: 1,
-        justifyContent: 'center',
+    formContainer: {
+        width: '100%',
     },
-    input: {
-        backgroundColor: '#fff',
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
         borderRadius: 12,
-        padding: 16,
-        fontSize: 16,
-        color: '#281b52',
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#d8dffe',
+        height: 56,
+    },
+    inputIcon: {
+        marginLeft: 16,
+        marginRight: 8,
+    },
+    input: {
+        flex: 1,
+        height: '100%',
+        fontSize: 16,
+        paddingRight: 16,
     },
     button: {
-        backgroundColor: '#56409e',
-        paddingVertical: 14,
+        paddingVertical: 16,
         borderRadius: 12,
         alignItems: 'center',
         marginBottom: 16,
+        elevation: 2,
     },
     buttonText: {
         fontSize: 16,
-        fontWeight: '500',
+        fontWeight: '600',
         color: '#fff',
     },
-    link: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#56409e',
+    successContainer: {
+        alignItems: 'center',
+        paddingVertical: 20,
+    },
+    successIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    successTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        marginBottom: 12,
+    },
+    successText: {
+        fontSize: 16,
         textAlign: 'center',
-        marginTop: 8,
+        marginBottom: 32,
+        lineHeight: 24,
     },
     footer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 16,
+        marginTop: 'auto',
+        paddingVertical: 16,
     },
     footerText: {
         fontSize: 14,
         fontWeight: '400',
-        color: '#9992a7',
+        marginRight: 4,
+    },
+    loginLink: {
+        fontSize: 14,
+        fontWeight: '600',
     },
 });

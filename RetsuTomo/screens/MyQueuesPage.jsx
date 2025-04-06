@@ -1,706 +1,542 @@
 import React, { useState, useEffect } from 'react';
 import {
-    StyleSheet,
-    View,
-    Text,
-    SafeAreaView,
-    FlatList,
-    Alert,
-    TouchableOpacity,
-    ActivityIndicator,
-    StatusBar,
-    RefreshControl,
-    Image,
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+  StatusBar,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
+  FlatList,
+  Image,
 } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { firestore, auth } from '../services/firebase';
-import { firebase } from '@react-native-firebase/app';
-import sampleDataService from '../services/sampleData';
+import { auth, firestore } from '../services/firebase';
+import { useTheme } from '../theme/ThemeContext';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 const Tab = createBottomTabNavigator();
 
 function OngoingQueues() {
-    const [ongoingQueues, setOngoingQueues] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [businessData, setBusinessData] = useState({});
-    const navigation = useNavigation();
+  const navigation = useNavigation();
+  const { theme } = useTheme();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeQueues, setActiveQueues] = useState([]);
+  const [businessData, setBusinessData] = useState({});
 
-    const fetchQueues = async () => {
-        try {
-            setLoading(true);
-            const user = auth.currentUser;
-            if (!user) {
-                Alert.alert('Error', 'You must be logged in to view your queues.');
-                return;
-            }
+  useEffect(() => {
+    fetchQueues();
+  }, []);
 
-            // Check if we need to populate sample data
-            const businessSnapshot = await firestore.collection('businesses').limit(1).get();
-            if (businessSnapshot.empty) {
-                await sampleDataService.populateSampleData();
-                // Join a sample queue for testing
-                await sampleDataService.joinSampleQueue(user.uid);
-            }
+  const fetchQueues = async () => {
+    try {
+      setLoading(true);
+      const user = auth.currentUser;
+      
+      if (!user) {
+        navigation.replace('LoginPage');
+        return;
+      }
 
-            // Get user's active queues
-            const userQueuesSnapshot = await firestore
-                .collection('users')
-                .doc(user.uid)
-                .collection('activeQueues')
-                .get();
+      // Fetch active queues
+      const activeSnapshot = await firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('activeQueues')
+        .get();
 
-            const userQueues = userQueuesSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-            }));
+      const activeQueuesData = [];
 
-            // Fetch business details for each queue
-            const businessIds = [...new Set(userQueues.map(q => q.businessId))];
-            const businessDetails = {};
-            
-            await Promise.all(
-                businessIds.map(async (businessId) => {
-                    const businessDoc = await firestore.collection('businesses').doc(businessId).get();
-                    if (businessDoc.exists) {
-                        businessDetails[businessId] = businessDoc.data();
-                    }
-                })
-            );
-            
-            setBusinessData(businessDetails);
-            
-            // Get queue positions and wait times
-            const queuesWithDetails = await Promise.all(
-                userQueues.map(async (queue) => {
-                    const queueSnapshot = await firestore
-                        .collection('businesses')
-                        .doc(queue.businessId)
-                        .collection('queues')
-                        .where('status', '==', 'active')
-                        .where('queueNumber', '<', queue.queueNumber)
-                        .get();
-                    
-                    const position = queueSnapshot.size + 1;
-                    let estimatedWaitTime = null;
-                    
-                    if (businessDetails[queue.businessId]?.estimatedTimePerCustomer) {
-                        estimatedWaitTime = (position - 1) * businessDetails[queue.businessId].estimatedTimePerCustomer;
-                    }
-                    
-                    return {
-                        ...queue,
-                        position,
-                        estimatedWaitTime,
-                    };
-                })
-            );
-            
-            setOngoingQueues(queuesWithDetails);
-        } catch (error) {
-            console.error('Error fetching queues:', error);
-            Alert.alert('Error', error.message);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchQueues();
-        
-        // Set up real-time listener for queue updates
-        const user = auth.currentUser;
-        if (!user) return;
-        
-        const unsubscribe = firestore
-            .collection('users')
-            .doc(user.uid)
-            .collection('activeQueues')
-            .onSnapshot(() => {
-                fetchQueues();
-            }, error => {
-                console.error('Queue listener error:', error);
+      // Process active queues
+      for (const doc of activeSnapshot.docs) {
+        const queueData = doc.data();
+        // Fetch business details
+        if (queueData.businessId) {
+          const businessDoc = await firestore.collection('businesses').doc(queueData.businessId).get();
+          if (businessDoc.exists) {
+            activeQueuesData.push({
+              id: doc.id,
+              ...queueData,
+              business: {
+                id: businessDoc.id,
+                ...businessDoc.data()
+              }
             });
-            
-        return () => unsubscribe();
-    }, []);
-
-    const onRefresh = () => {
-        setRefreshing(true);
-        fetchQueues();
-    };
-
-    const handleViewBusiness = (businessId) => {
-        navigation.navigate('QueuePage', { 
-            businessId, 
-            businessName: businessData[businessId]?.name || 'Business' 
-        });
-    };
-
-    const handleCancelQueue = async (queueId, businessId, queueNumber) => {
-        try {
-            Alert.alert(
-                'Cancel Queue',
-                'Are you sure you want to leave this queue?',
-                [
-                    {
-                        text: 'No',
-                        style: 'cancel',
-                    },
-                    {
-                        text: 'Yes',
-                        onPress: async () => {
-                            setLoading(true);
-                            const user = auth.currentUser;
-                            
-                            // Find the queue document in the business collection
-                            const businessQueuesSnapshot = await firestore
-                                .collection('businesses')
-                                .doc(businessId)
-                                .collection('queues')
-                                .where('userId', '==', user.uid)
-                                .where('queueNumber', '==', queueNumber)
-                                .where('status', '==', 'active')
-                                .get();
-                                
-                            if (!businessQueuesSnapshot.empty) {
-                                // Update queue status to cancelled
-                                await firestore
-                                    .collection('businesses')
-                                    .doc(businessId)
-                                    .collection('queues')
-                                    .doc(businessQueuesSnapshot.docs[0].id)
-                                    .update({
-                                        status: 'cancelled',
-                                        cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
-                                    });
-                            }
-                                
-                            // Remove from user's active queues
-                            await firestore
-                                .collection('users')
-                                .doc(user.uid)
-                                .collection('activeQueues')
-                                .doc(queueId)
-                                .delete();
-                                
-                            // Refresh the queue list
-                            fetchQueues();
-                            
-                            Alert.alert('Queue Cancelled', 'You have successfully left the queue.');
-                        },
-                    },
-                ],
-                { cancelable: true }
-            );
-        } catch (error) {
-            console.error('Error cancelling queue:', error);
-            Alert.alert('Error', error.message);
+          }
         }
-    };
+      }
 
-    const renderQueueItem = ({ item }) => {
-        const business = businessData[item.businessId] || {};
-        
-        return (
-            <TouchableOpacity
-                style={styles.card}
-                onPress={() => handleViewBusiness(item.businessId)}
-            >
-                <View style={styles.cardHeader}>
-                    <View style={[styles.businessIcon, { backgroundColor: getRandomColor(item.businessId) }]}>
-                        <Text style={styles.businessIconText}>
-                            {business.name ? business.name.charAt(0).toUpperCase() : 'B'}
-                        </Text>
-                    </View>
-                    <View style={styles.cardHeaderContent}>
-                        <Text style={styles.businessName}>{business.name || 'Business'}</Text>
-                        <View style={styles.queueNumberContainer}>
-                            <Text style={styles.queueNumberLabel}>Queue #</Text>
-                            <Text style={styles.queueNumber}>{item.queueNumber}</Text>
-                        </View>
-                    </View>
-                </View>
-                
-                <View style={styles.cardContent}>
-                    <View style={styles.infoRow}>
-                        <Icon name="account-multiple" size={20} color="#56409e" />
-                        <Text style={styles.infoText}>
-                            Position: <Text style={styles.infoHighlight}>{item.position} in line</Text>
-                        </Text>
-                    </View>
-                    
-                    <View style={styles.infoRow}>
-                        <Icon name="clock-outline" size={20} color="#56409e" />
-                        <Text style={styles.infoText}>
-                            Wait time: <Text style={styles.infoHighlight}>
-                                {item.estimatedWaitTime !== null 
-                                    ? item.estimatedWaitTime === 0 
-                                        ? 'You are next!' 
-                                        : `~${item.estimatedWaitTime} mins` 
-                                    : 'Unknown'}
-                            </Text>
-                        </Text>
-                    </View>
-                    
-                    <View style={styles.infoRow}>
-                        <Icon name="calendar-clock" size={20} color="#56409e" />
-                        <Text style={styles.infoText}>
-                            Joined: <Text style={styles.infoHighlight}>
-                                {item.joinedAt ? formatTimestamp(item.joinedAt) : 'Recently'}
-                            </Text>
-                        </Text>
-                    </View>
-                </View>
-                
-                <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={() => handleCancelQueue(item.id, item.businessId, item.queueNumber)}
-                >
-                    <Text style={styles.cancelButtonText}>Leave Queue</Text>
-                </TouchableOpacity>
-            </TouchableOpacity>
-        );
-    };
+      setActiveQueues(activeQueuesData);
+      setBusinessData(activeQueuesData.reduce((acc, queue) => ({ ...acc, [queue.businessId]: queue.business }), {}));
+    } catch (error) {
+      console.error('Error fetching queues:', error);
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
-    const renderEmptyComponent = () => (
-        <View style={styles.emptyContainer}>
-            {loading ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#56409e" />
-                    <Text style={styles.loadingText}>Loading your queues...</Text>
-                </View>
-            ) : (
-                <>
-                    <Icon name="ticket-confirmation-outline" size={60} color="#d8dffe" />
-                    <Text style={styles.emptyTitle}>No active queues</Text>
-                    <Text style={styles.emptyText}>
-                        You're not currently in any queues. Browse businesses to join a queue.
-                    </Text>
-                    <TouchableOpacity
-                        style={styles.browseButton}
-                        onPress={() => navigation.navigate('BusinessList')}
-                    >
-                        <Text style={styles.browseButtonText}>Browse Businesses</Text>
-                    </TouchableOpacity>
-                </>
-            )}
-        </View>
-    );
+  const handleLeaveQueue = async (queueId, businessId, queueNumber) => {
+    try {
+      Alert.alert(
+        'Leave Queue',
+        'Are you sure you want to leave this queue?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          },
+          {
+            text: 'Leave',
+            style: 'destructive',
+            onPress: async () => {
+              await firestore
+                .collection('businesses')
+                .doc(businessId)
+                .collection('queues')
+                .where('userId', '==', auth.currentUser.uid)
+                .where('queueNumber', '==', queueNumber)
+                .where('status', '==', 'active')
+                .get()
+                .then(snapshot => {
+                  if (!snapshot.empty) {
+                    snapshot.docs[0].ref.update({
+                      status: 'cancelled',
+                      leftAt: new Date()
+                    });
+                  }
+                });
+              
+              // Remove from user's active queues
+              await firestore
+                .collection('users')
+                .doc(auth.currentUser.uid)
+                .collection('activeQueues')
+                .doc(queueId)
+                .delete();
+              
+              // Refresh the queue list
+              fetchQueues();
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error leaving queue:', error);
+      Alert.alert('Error', error.message);
+    }
+  };
 
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchQueues();
+  };
+
+  if (loading && !refreshing) {
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar backgroundColor="#f5f5f5" barStyle="dark-content" />
-            <View style={styles.header}>
-                <Text style={styles.title}>My Queues</Text>
-                <Text style={styles.subtitle}>Track your active queues</Text>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
+        <ActivityIndicator size="large" color={theme.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
+      
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={[styles.backButton, { backgroundColor: theme.card }]} 
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-left" size={24} color={theme.text} />
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: theme.text }]}>My Queues</Text>
+        <View style={styles.placeholder} />
+      </View>
+
+      <FlatList
+        data={activeQueues}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            style={[styles.queueCard, { backgroundColor: theme.card }]}
+            onPress={() => navigation.navigate('QueuePage', { 
+              businessId: item.businessId,
+              businessName: item.business?.name
+            })}
+          >
+            <View style={styles.queueCardContent}>
+              <View style={[
+                styles.queueIconContainer, 
+                { 
+                  backgroundColor: theme.primaryLight 
+                }
+              ]}>
+                <Icon 
+                  name="ticket-outline" 
+                  size={24} 
+                  color={theme.primary} 
+                />
+              </View>
+              <View style={styles.queueInfo}>
+                <Text style={[styles.businessName, { color: theme.text }]}>
+                  {item.business?.name || 'Business'}
+                </Text>
+                <View style={styles.queueMeta}>
+                  <View style={styles.queueDetails}>
+                    <Text style={[styles.queuePosition, { color: theme.secondaryText }]}>
+                      Position: #{item.position}
+                    </Text>
+                    <Text style={[styles.queueWaitTime, { color: theme.secondaryText }]}>
+                      Est. wait: ~{item.estimatedWaitTime} min
+                    </Text>
+                  </View>
+                  <View style={[
+                    styles.statusBadge, 
+                    { 
+                      backgroundColor: theme.warning 
+                    }
+                  ]}>
+                    <Text style={styles.statusText}>
+                      Waiting
+                    </Text>
+                  </View>
+                </View>
+              </View>
             </View>
             
-            <FlatList
-                data={ongoingQueues}
-                keyExtractor={item => item.id}
-                renderItem={renderQueueItem}
-                contentContainerStyle={styles.list}
-                ListEmptyComponent={renderEmptyComponent}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        colors={['#56409e']}
-                    />
-                }
-            />
-        </SafeAreaView>
-    );
+            <TouchableOpacity 
+              style={[styles.leaveButton, { backgroundColor: theme.error + '20' }]}
+              onPress={() => handleLeaveQueue(item.id, item.businessId, item.queueNumber)}
+            >
+              <Icon name="close" size={20} color={theme.error} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        )}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.primary]}
+            tintColor={theme.primary}
+          />
+        }
+      />
+    </SafeAreaView>
+  );
 }
 
 function FinishedQueues() {
-    const [finishedQueues, setFinishedQueues] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [businessData, setBusinessData] = useState({});
-    const navigation = useNavigation();
+  const navigation = useNavigation();
+  const { theme } = useTheme();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [historyQueues, setHistoryQueues] = useState([]);
 
-    const fetchQueues = async () => {
-        try {
-            setLoading(true);
-            const user = auth.currentUser;
-            if (!user) {
-                Alert.alert('Error', 'You must be logged in to view your queues.');
-                return;
-            }
+  useEffect(() => {
+    fetchQueues();
+  }, []);
 
-            const snapshot = await firestore
-                .collectionGroup('queues')
-                .where('userId', '==', user.uid)
-                .where('status', 'in', ['finished', 'cancelled'])
-                .orderBy('createdAt', 'desc')
-                .limit(20)
-                .get();
+  const fetchQueues = async () => {
+    try {
+      setLoading(true);
+      const user = auth.currentUser;
+      
+      if (!user) {
+        navigation.replace('LoginPage');
+        return;
+      }
 
-            const finished = snapshot.docs.map(doc => ({
-                id: doc.id,
-                businessId: doc.ref.path.split('/')[1], // Extract businessId from path
-                ...doc.data(),
-            }));
+      // Fetch history queues
+      const historySnapshot = await firestore
+        .collectionGroup('queues')
+        .where('userId', '==', user.uid)
+        .where('status', 'in', ['finished', 'cancelled'])
+        .orderBy('createdAt', 'desc')
+        .limit(10)
+        .get();
 
-            // Fetch business details for each queue
-            const businessIds = [...new Set(finished.map(q => q.businessId))];
-            const businessDetails = {};
-            
-            await Promise.all(
-                businessIds.map(async (businessId) => {
-                    const businessDoc = await firestore.collection('businesses').doc(businessId).get();
-                    if (businessDoc.exists) {
-                        businessDetails[businessId] = businessDoc.data();
-                    }
-                })
-            );
-            
-            setBusinessData(businessDetails);
-            setFinishedQueues(finished);
-        } catch (error) {
-            console.error('Error fetching finished queues:', error);
-            Alert.alert('Error', error.message);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
+      const historyQueuesData = [];
+
+      // Process history queues
+      for (const doc of historySnapshot.docs) {
+        const queueData = doc.data();
+        // Fetch business details
+        if (queueData.businessId) {
+          const businessDoc = await firestore.collection('businesses').doc(queueData.businessId).get();
+          if (businessDoc.exists) {
+            historyQueuesData.push({
+              id: doc.id,
+              ...queueData,
+              business: {
+                id: businessDoc.id,
+                ...businessDoc.data()
+              }
+            });
+          }
         }
-    };
+      }
 
-    useEffect(() => {
-        fetchQueues();
-    }, []);
+      setHistoryQueues(historyQueuesData);
+    } catch (error) {
+      console.error('Error fetching queues:', error);
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
-    const onRefresh = () => {
-        setRefreshing(true);
-        fetchQueues();
-    };
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchQueues();
+  };
 
-    const renderQueueItem = ({ item }) => {
-        const business = businessData[item.businessId] || {};
-        const isFinished = item.status === 'finished';
-        
-        return (
-            <View style={styles.historyCard}>
-                <View style={styles.cardHeader}>
-                    <View style={[styles.businessIcon, { backgroundColor: getRandomColor(item.businessId) }]}>
-                        <Text style={styles.businessIconText}>
-                            {business.name ? business.name.charAt(0).toUpperCase() : 'B'}
-                        </Text>
-                    </View>
-                    <View style={styles.cardHeaderContent}>
-                        <Text style={styles.businessName}>{business.name || 'Business'}</Text>
-                        <View style={styles.queueNumberContainer}>
-                            <Text style={styles.queueNumberLabel}>Queue #</Text>
-                            <Text style={styles.queueNumber}>{item.queueNumber}</Text>
-                        </View>
-                    </View>
-                    <View style={[
-                        styles.statusBadge, 
-                        isFinished ? styles.finishedBadge : styles.cancelledBadge
-                    ]}>
-                        <Text style={styles.statusText}>
-                            {isFinished ? 'Completed' : 'Cancelled'}
-                        </Text>
-                    </View>
-                </View>
-                
-                <View style={styles.historyCardContent}>
-                    <View style={styles.infoRow}>
-                        <Icon name="calendar-clock" size={20} color="#9992a7" />
-                        <Text style={styles.historyInfoText}>
-                            {isFinished ? 'Completed' : 'Cancelled'} on {formatTimestamp(item.finishedAt || item.cancelledAt)}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-        );
-    };
-
-    const renderEmptyComponent = () => (
-        <View style={styles.emptyContainer}>
-            {loading ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#56409e" />
-                    <Text style={styles.loadingText}>Loading your queue history...</Text>
-                </View>
-            ) : (
-                <>
-                    <Icon name="history" size={60} color="#d8dffe" />
-                    <Text style={styles.emptyTitle}>No queue history</Text>
-                    <Text style={styles.emptyText}>
-                        Your completed and cancelled queues will appear here.
-                    </Text>
-                </>
-            )}
-        </View>
-    );
-
+  if (loading && !refreshing) {
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar backgroundColor="#f5f5f5" barStyle="dark-content" />
-            <View style={styles.header}>
-                <Text style={styles.title}>Queue History</Text>
-                <Text style={styles.subtitle}>Your past queues</Text>
-            </View>
-            
-            <FlatList
-                data={finishedQueues}
-                keyExtractor={item => item.id}
-                renderItem={renderQueueItem}
-                contentContainerStyle={styles.list}
-                ListEmptyComponent={renderEmptyComponent}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        colors={['#56409e']}
-                    />
-                }
-            />
-        </SafeAreaView>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
+        <ActivityIndicator size="large" color={theme.primary} />
+      </SafeAreaView>
     );
+  }
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
+      
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={[styles.backButton, { backgroundColor: theme.card }]} 
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-left" size={24} color={theme.text} />
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: theme.text }]}>Queue History</Text>
+        <View style={styles.placeholder} />
+      </View>
+
+      <FlatList
+        data={historyQueues}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => (
+          <View 
+            style={[styles.historyCard, { backgroundColor: theme.card }]}
+          >
+            <View style={styles.queueCardContent}>
+              <View style={[
+                styles.queueIconContainer, 
+                { 
+                  backgroundColor: item.status === 'completed' 
+                    ? theme.success + '20' 
+                    : theme.error + '20' 
+                }
+              ]}>
+                <Icon 
+                  name={item.status === 'completed' ? 'check-circle-outline' : 'close-circle-outline'} 
+                  size={24} 
+                  color={item.status === 'completed' ? theme.success : theme.error} 
+                />
+              </View>
+              <View style={styles.queueInfo}>
+                <Text style={[styles.businessName, { color: theme.text }]}>
+                  {item.business?.name || 'Business'}
+                </Text>
+                <View style={styles.historyMeta}>
+                  <Text style={[styles.historyDate, { color: theme.secondaryText }]}>
+                    {item.joinedAt?.toDate().toLocaleDateString()}
+                  </Text>
+                  <View style={[
+                    styles.statusBadge, 
+                    { 
+                      backgroundColor: item.status === 'completed' 
+                        ? theme.success 
+                        : theme.error 
+                    }
+                  ]}>
+                    <Text style={styles.statusText}>
+                      {item.status === 'completed' ? 'Completed' : 'Cancelled'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.primary]}
+            tintColor={theme.primary}
+          />
+        }
+      />
+    </SafeAreaView>
+  );
 }
 
-// Helper function to format timestamp
-const formatTimestamp = (timestamp) => {
-    if (!timestamp) return 'Unknown';
-    
-    try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        return date.toLocaleString('en-US', { 
-            month: 'short', 
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit'
-        });
-    } catch (e) {
-        return 'Unknown';
-    }
-};
-
-// Generate a consistent color based on business ID
-const getRandomColor = (id) => {
-    if (!id) return '#6C63FF';
-    const colors = ['#6C63FF', '#FF6584', '#43A047', '#FB8C00', '#5C6BC0', '#26A69A'];
-    const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-};
-
 export default function MyQueuesPage() {
-    return (
-        <Tab.Navigator
-            screenOptions={{
-                headerShown: false,
-                tabBarStyle: { 
-                    backgroundColor: '#fff',
-                    borderTopWidth: 1,
-                    borderTopColor: '#e0e0e0',
-                    elevation: 8,
-                },
-                tabBarActiveTintColor: '#56409e',
-                tabBarInactiveTintColor: '#9992a7',
-            }}
-        >
-            <Tab.Screen
-                name="Ongoing"
-                component={OngoingQueues}
-                options={{
-                    tabBarLabel: 'Active',
-                    tabBarIcon: ({ color, size }) => (
-                        <Icon name="ticket-outline" color={color} size={size} />
-                    ),
-                }}
-            />
-            <Tab.Screen
-                name="Finished"
-                component={FinishedQueues}
-                options={{
-                    tabBarLabel: 'History',
-                    tabBarIcon: ({ color, size }) => (
-                        <Icon name="history" color={color} size={size} />
-                    ),
-                }}
-            />
-        </Tab.Navigator>
-    );
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: { 
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#e0e0e0',
+          elevation: 8,
+        },
+        tabBarActiveTintColor: '#56409e',
+        tabBarInactiveTintColor: '#9992a7',
+      }}
+    >
+      <Tab.Screen
+        name="Ongoing"
+        component={OngoingQueues}
+        options={{
+          tabBarLabel: 'Active',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="ticket-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Finished"
+        component={FinishedQueues}
+        options={{
+          tabBarLabel: 'History',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="history" color={color} size={size} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f5f5f5',
-    },
-    header: {
-        paddingHorizontal: 24,
-        paddingTop: 20,
-        paddingBottom: 10,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#281b52',
-    },
-    subtitle: {
-        fontSize: 16,
-        fontWeight: '400',
-        color: '#9992a7',
-        marginTop: 4,
-    },
-    list: {
-        paddingHorizontal: 24,
-        paddingBottom: 24,
-        flexGrow: 1,
-    },
-    card: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        marginBottom: 16,
-        padding: 16,
-        elevation: 2,
-    },
-    historyCard: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        marginBottom: 16,
-        padding: 16,
-        elevation: 2,
-        opacity: 0.9,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    businessIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    businessIconText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#fff',
-    },
-    cardHeaderContent: {
-        flex: 1,
-    },
-    businessName: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#281b52',
-    },
-    queueNumberContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 4,
-    },
-    queueNumberLabel: {
-        fontSize: 12,
-        color: '#9992a7',
-        marginRight: 4,
-    },
-    queueNumber: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#56409e',
-    },
-    statusBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-        marginLeft: 8,
-    },
-    finishedBadge: {
-        backgroundColor: '#e8f5e9',
-    },
-    cancelledBadge: {
-        backgroundColor: '#ffebee',
-    },
-    statusText: {
-        fontSize: 12,
-        fontWeight: '500',
-    },
-    cardContent: {
-        marginTop: 16,
-        marginBottom: 16,
-    },
-    historyCardContent: {
-        marginTop: 16,
-    },
-    infoRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    infoText: {
-        fontSize: 14,
-        color: '#281b52',
-        marginLeft: 8,
-    },
-    historyInfoText: {
-        fontSize: 14,
-        color: '#9992a7',
-        marginLeft: 8,
-    },
-    infoHighlight: {
-        fontWeight: '600',
-        color: '#56409e',
-    },
-    cancelButton: {
-        backgroundColor: '#ffebee',
-        paddingVertical: 10,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    cancelButtonText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#f44336',
-    },
-    emptyContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 60,
-    },
-    loadingContainer: {
-        alignItems: 'center',
-    },
-    loadingText: {
-        fontSize: 16,
-        color: '#56409e',
-        marginTop: 16,
-    },
-    emptyTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#281b52',
-        marginTop: 16,
-        marginBottom: 8,
-    },
-    emptyText: {
-        fontSize: 14,
-        color: '#9992a7',
-        textAlign: 'center',
-        marginHorizontal: 32,
-    },
-    browseButton: {
-        backgroundColor: '#56409e',
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 12,
-        marginTop: 24,
-    },
-    browseButtonText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#fff',
-    },
+  container: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  placeholder: {
+    width: 40,
+  },
+  list: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  queueCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    elevation: 2,
+  },
+  historyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    elevation: 2,
+  },
+  queueCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  queueIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  queueInfo: {
+    flex: 1,
+  },
+  businessName: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  queueMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  queueDetails: {
+  },
+  queuePosition: {
+    fontSize: 14,
+  },
+  queueWaitTime: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  historyMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  historyDate: {
+    fontSize: 14,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#fff',
+  },
+  leaveButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
 });
