@@ -190,7 +190,7 @@ export default function BusinessListPage() {
     
     if (loading) {
         return (
-            <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]} edges={['top', 'right', 'left']}>
+            <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]} edges={['top', 'right', 'left', 'bottom']}>
                 <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
                 <ActivityIndicator size="large" color={theme.primary} />
             </SafeAreaView>

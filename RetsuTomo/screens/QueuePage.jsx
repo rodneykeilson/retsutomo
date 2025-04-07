@@ -190,7 +190,7 @@ export default function QueuePage() {
     
     if (loading) {
         return (
-            <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
+            <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top',  'bottom']}>
                 <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
                 <ActivityIndicator size="large" color={theme.primary} />
             </SafeAreaView>
@@ -198,7 +198,7 @@ export default function QueuePage() {
     }
     
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top',  'bottom']}>
             <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
             
             <View style={styles.header}>

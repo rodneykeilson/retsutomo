@@ -141,7 +141,7 @@ function OngoingQueues() {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top',  'bottom']}>
         <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
         <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
@@ -149,7 +149,7 @@ function OngoingQueues() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top',  'bottom']}>
       <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
       
       <View style={styles.header}>
@@ -305,7 +305,7 @@ function FinishedQueues() {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top',  'bottom']}>
         <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
         <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
@@ -313,7 +313,7 @@ function FinishedQueues() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top',  'bottom']}>
       <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
       
       <View style={styles.header}>
@@ -391,7 +391,7 @@ function FinishedQueues() {
 export default function MyQueuesPage() {
   const insets = useSafeAreaInsets();
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: '#fff', paddingTop: insets.top }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#fff', paddingTop: insets.top }]} edges={['top',  'bottom']}>
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
