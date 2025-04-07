@@ -3,7 +3,6 @@ import {
     StyleSheet,
     View,
     Text,
-    SafeAreaView,
     TextInput,
     FlatList,
     TouchableOpacity,
@@ -14,12 +13,14 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { firestore } from '../services/firebase';
 import { useTheme } from '../theme/ThemeContext';
 
 export default function BusinessListPage() {
     const navigation = useNavigation();
     const { theme } = useTheme();
+    const insets = useSafeAreaInsets();
     const [searchQuery, setSearchQuery] = useState('');
     const [businesses, setBusinesses] = useState([]);
     const [filteredBusinesses, setFilteredBusinesses] = useState([]);
@@ -189,7 +190,7 @@ export default function BusinessListPage() {
     
     if (loading) {
         return (
-            <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+            <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]} edges={['top', 'right', 'left']}>
                 <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
                 <ActivityIndicator size="large" color={theme.primary} />
             </SafeAreaView>
@@ -197,7 +198,10 @@ export default function BusinessListPage() {
     }
     
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <SafeAreaView 
+            style={[styles.container, { backgroundColor: theme.background }]} 
+            edges={['top', 'right', 'left']}
+        >
             <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
             
             <View style={styles.header}>
@@ -239,7 +243,7 @@ export default function BusinessListPage() {
             </View>
             
             {filteredBusinesses.length === 0 ? (
-                <View style={styles.emptyContainer}>
+                <View style={[styles.emptyContainer, { paddingBottom: insets.bottom }]}>
                     <Icon name="store-search" size={64} color={theme.secondaryText} />
                     <Text style={[styles.emptyTitle, { color: theme.text }]}>No businesses found</Text>
                     <Text style={[styles.emptyDescription, { color: theme.secondaryText }]}>
@@ -251,7 +255,7 @@ export default function BusinessListPage() {
                     data={filteredBusinesses}
                     renderItem={renderBusinessItem}
                     keyExtractor={(item) => item.id}
-                    contentContainerStyle={styles.businessList}
+                    contentContainerStyle={[styles.businessList, { paddingBottom: insets.bottom + 16 }]}
                     showsVerticalScrollIndicator={false}
                 />
             )}

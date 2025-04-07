@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
   TextInput,
@@ -13,9 +12,11 @@ import {
   Modal,
   Switch,
   RefreshControl,
+  FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, firestore } from '../services/firebase';
 import { useTheme } from '../theme/ThemeContext';
 import QueueManagement from '../components/QueueManagement';
@@ -24,6 +25,7 @@ import sampleDataService from '../services/sampleData';
 
 export default function ManageBusinessesPage({ navigation }) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [businesses, setBusinesses] = useState([]);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [selectedBusinessId, setSelectedBusinessId] = useState(null);
@@ -294,7 +296,7 @@ export default function ManageBusinessesPage({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
         <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={[styles.loadingText, { color: theme.primary }]}>Loading business data...</Text>
@@ -303,7 +305,7 @@ export default function ManageBusinessesPage({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
       <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
       
       <View style={styles.header}>

@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
   RefreshControl,
@@ -15,6 +14,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, firestore } from '../services/firebase';
 import { useTheme } from '../theme/ThemeContext';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -24,6 +24,7 @@ const Tab = createBottomTabNavigator();
 function OngoingQueues() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeQueues, setActiveQueues] = useState([]);
@@ -140,7 +141,7 @@ function OngoingQueues() {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
         <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
         <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
@@ -148,7 +149,7 @@ function OngoingQueues() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
       <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
       
       <View style={styles.header}>
@@ -238,6 +239,7 @@ function OngoingQueues() {
 function FinishedQueues() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [historyQueues, setHistoryQueues] = useState([]);
@@ -303,7 +305,7 @@ function FinishedQueues() {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
         <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
         <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
@@ -311,7 +313,7 @@ function FinishedQueues() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
       <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
       
       <View style={styles.header}>
@@ -387,41 +389,44 @@ function FinishedQueues() {
 }
 
 export default function MyQueuesPage() {
+  const insets = useSafeAreaInsets();
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: { 
-          backgroundColor: '#fff',
-          borderTopWidth: 1,
-          borderTopColor: '#e0e0e0',
-          elevation: 8,
-        },
-        tabBarActiveTintColor: '#56409e',
-        tabBarInactiveTintColor: '#9992a7',
-      }}
-    >
-      <Tab.Screen
-        name="Ongoing"
-        component={OngoingQueues}
-        options={{
-          tabBarLabel: 'Active',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="ticket-outline" color={color} size={size} />
-          ),
+    <SafeAreaView style={[styles.container, { backgroundColor: '#fff', paddingTop: insets.top }]} edges={['top']}>
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: { 
+            backgroundColor: '#fff',
+            borderTopWidth: 1,
+            borderTopColor: '#e0e0e0',
+            elevation: 8,
+          },
+          tabBarActiveTintColor: '#56409e',
+          tabBarInactiveTintColor: '#9992a7',
         }}
-      />
-      <Tab.Screen
-        name="Finished"
-        component={FinishedQueues}
-        options={{
-          tabBarLabel: 'History',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="history" color={color} size={size} />
-          ),
-        }}
-      />
-    </Tab.Navigator>
+      >
+        <Tab.Screen
+          name="Ongoing"
+          component={OngoingQueues}
+          options={{
+            tabBarLabel: 'Active',
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="ticket-outline" color={color} size={size} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Finished"
+          component={FinishedQueues}
+          options={{
+            tabBarLabel: 'History',
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="history" color={color} size={size} />
+            ),
+          }}
+        />
+      </Tab.Navigator>
+    </SafeAreaView>
   );
 }
 

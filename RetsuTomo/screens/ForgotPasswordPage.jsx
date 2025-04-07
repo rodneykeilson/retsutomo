@@ -3,7 +3,6 @@ import {
     StyleSheet,
     View,
     Text,
-    SafeAreaView,
     TextInput,
     TouchableOpacity,
     Alert,
@@ -14,12 +13,14 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from '../services/firebase';
 import { useTheme } from '../theme/ThemeContext';
 
 export default function ForgotPasswordPage() {
     const navigation = useNavigation();
     const { theme } = useTheme();
+    const insets = useSafeAreaInsets();
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [resetSent, setResetSent] = useState(false);
@@ -42,7 +43,7 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
             <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

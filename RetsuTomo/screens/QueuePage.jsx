@@ -3,7 +3,6 @@ import {
     StyleSheet,
     View,
     Text,
-    SafeAreaView,
     TouchableOpacity,
     Alert,
     StatusBar,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, firestore } from '../services/firebase';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -19,6 +19,7 @@ export default function QueuePage() {
     const navigation = useNavigation();
     const route = useRoute();
     const { theme } = useTheme();
+    const insets = useSafeAreaInsets();
     const { businessId, businessName: routeBusinessName } = route.params;
     
     const [business, setBusiness] = useState(null);
@@ -189,7 +190,7 @@ export default function QueuePage() {
     
     if (loading) {
         return (
-            <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+            <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
                 <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
                 <ActivityIndicator size="large" color={theme.primary} />
             </SafeAreaView>
@@ -197,7 +198,7 @@ export default function QueuePage() {
     }
     
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
             <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
             
             <View style={styles.header}>

@@ -3,7 +3,6 @@ import {
   StyleSheet,
   View,
   Text,
-  SafeAreaView,
   TouchableOpacity,
   StatusBar,
   Image,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from '../services/firebase';
 import { useTheme } from '../theme/ThemeContext';
 import landing from '../assets/images/retsutomo-landing-page.png';
@@ -18,6 +18,7 @@ import landing from '../assets/images/retsutomo-landing-page.png';
 export default function LandingPage() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [currentPage, setCurrentPage] = useState(0);
 
   const onboardingPages = [
@@ -66,7 +67,7 @@ export default function LandingPage() {
   }, [navigation]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
       <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
       
       <View style={[styles.hero, { backgroundColor: theme.primaryLight }]}>
@@ -79,30 +80,12 @@ export default function LandingPage() {
       
       <View style={styles.content}>
         <View style={styles.contentHeader}>
-          <Text style={[styles.appTitle, { color: theme.primary }]}>RetsuTomo</Text>
-          <Text style={[styles.title, { color: theme.text }]}>{onboardingPages[currentPage].title}</Text>
+          <Text style={[styles.title, { color: theme.primary }]}>{onboardingPages[currentPage].title}</Text>
           <Text style={[styles.text, { color: theme.secondaryText }]}>
             {onboardingPages[currentPage].description}
           </Text>
         </View>
         
-        <View style={styles.featureContainer}>
-          <View style={[styles.featureCard, { backgroundColor: theme.card }]}>
-            <Icon name="store" size={24} color={theme.primary} style={styles.featureIcon} />
-            <Text style={[styles.featureTitle, { color: theme.text }]}>Manage Business Queues</Text>
-          </View>
-          
-          <View style={[styles.featureCard, { backgroundColor: theme.card }]}>
-            <Icon name="account-multiple" size={24} color={theme.primary} style={styles.featureIcon} />
-            <Text style={[styles.featureTitle, { color: theme.text }]}>Join Queues Remotely</Text>
-          </View>
-          
-          <View style={[styles.featureCard, { backgroundColor: theme.card }]}>
-            <Icon name="bell-ring" size={24} color={theme.primary} style={styles.featureIcon} />
-            <Text style={[styles.featureTitle, { color: theme.text }]}>Real-time Notifications</Text>
-          </View>
-        </View>
-
         <View style={styles.paginationContainer}>
           {onboardingPages.map((_, index) => (
             <View 
@@ -150,7 +133,7 @@ const styles = StyleSheet.create({
   },
   heroImage: {
     width: '100%',
-    height: 280,
+    height: 220,
   },
   content: {
     flex: 1,
@@ -162,13 +145,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  appTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 12,
@@ -178,23 +156,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: '400',
     textAlign: 'center',
-  },
-  featureContainer: {
-    marginVertical: 24,
-  },
-  featureCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  featureIcon: {
-    marginRight: 16,
-  },
-  featureTitle: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   paginationContainer: {
     flexDirection: 'row',
@@ -211,12 +172,12 @@ const styles = StyleSheet.create({
     width: 20,
   },
   button: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
-    flexDirection: 'row',
+    height: 56,
+    borderRadius: 28,
+    marginBottom: 16,
   },
   buttonText: {
     color: '#fff',
@@ -229,7 +190,7 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     alignItems: 'center',
-    marginTop: 16,
+    padding: 8,
   },
   skipButtonText: {
     fontSize: 14,

@@ -3,7 +3,6 @@ import {
     StyleSheet,
     View,
     Text,
-    SafeAreaView,
     TextInput,
     TouchableOpacity,
     Alert,
@@ -14,12 +13,14 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, firestore } from '../services/firebase';
 import { useTheme } from '../theme/ThemeContext';
 
 export default function RegisterPage() {
     const navigation = useNavigation();
     const { theme } = useTheme();
+    const insets = useSafeAreaInsets();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -61,7 +62,7 @@ export default function RegisterPage() {
     };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
             <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

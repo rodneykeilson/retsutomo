@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
   Switch,
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, firestore } from '../services/firebase';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -21,6 +21,7 @@ export default function ManageQueuesPage() {
   const navigation = useNavigation();
   const route = useRoute();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const { businessId } = route.params || {};
   
   const [loading, setLoading] = useState(true);
@@ -264,7 +265,7 @@ export default function ManageQueuesPage() {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
         <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
         <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
@@ -272,7 +273,7 @@ export default function ManageQueuesPage() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
       <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
       
       <View style={styles.header}>
@@ -296,6 +297,7 @@ export default function ManageQueuesPage() {
             tintColor={theme.primary}
           />
         }
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
       >
         {business && (
           <View style={[styles.businessCard, { backgroundColor: theme.card }]}>

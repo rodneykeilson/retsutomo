@@ -3,7 +3,6 @@ import {
     StyleSheet,
     View,
     Text,
-    SafeAreaView,
     TextInput,
     TouchableOpacity,
     Alert,
@@ -14,12 +13,14 @@ import {
 import { auth, firestore } from '../services/firebase';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 
 export default function ProfilePage() {
     const navigation = useNavigation();
     const { theme } = useTheme();
+    const insets = useSafeAreaInsets();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
@@ -205,7 +206,7 @@ export default function ProfilePage() {
     );
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
             <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
             
             <ScrollView showsVerticalScrollIndicator={false}>
