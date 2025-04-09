@@ -206,7 +206,7 @@ export default function ProfilePage() {
     );
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
             <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
             
             <ScrollView showsVerticalScrollIndicator={false}>

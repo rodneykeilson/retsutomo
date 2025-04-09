@@ -263,9 +263,9 @@ export default function ManageQueuesPage() {
     fetchBusinessData();
   };
 
-  if (loading && !refreshing) {
+  if (loading) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]} edges={['top']}>
         <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
         <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
@@ -273,7 +273,7 @@ export default function ManageQueuesPage() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
       
       <View style={styles.header}>

@@ -100,7 +100,7 @@ export default function DashboardPage() {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top',  'bottom']}>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]} edges={['top']}>
         <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
         <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
@@ -108,7 +108,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top',  'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top']}>
       <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
       
       <View style={styles.header}>
@@ -130,6 +130,7 @@ export default function DashboardPage() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

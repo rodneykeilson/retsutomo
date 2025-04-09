@@ -67,10 +67,10 @@ export default function LandingPage() {
   }, [navigation]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]} edges={['top',  'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
       
-      <View style={[styles.hero, { backgroundColor: theme.primaryLight }]}>
+      <View style={[styles.hero, { backgroundColor: theme.primaryLight, paddingTop: insets.top }]}>
         <Image
           source={landing}
           style={styles.heroImage}

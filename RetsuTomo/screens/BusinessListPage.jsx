@@ -200,7 +200,7 @@ export default function BusinessListPage() {
     return (
         <SafeAreaView 
             style={[styles.container, { backgroundColor: theme.background }]} 
-            edges={['top', 'right', 'left']}
+            edges={['top', 'right', 'left', 'bottom']}
         >
             <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
             

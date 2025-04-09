@@ -47,7 +47,7 @@ export default function LoginPage() {
     };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingTop: top }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
             <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
