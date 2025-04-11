@@ -9,6 +9,11 @@ import { ThemeProvider, useTheme } from './theme/ThemeContext';
 import { firebase } from '@react-native-firebase/app';
 import '@react-native-firebase/auth';
 import '@react-native-firebase/firestore';
+import '@react-native-firebase/messaging';
+
+// Import notification service
+import NotificationService from './services/NotificationService';
+import NotificationIcon from './components/NotificationIcon';
 
 import LandingPage from './screens/LandingPage';
 import LoginPage from './screens/LoginPage';
@@ -22,6 +27,7 @@ import BusinessListPage from './screens/BusinessListPage';
 import QueuePage from './screens/QueuePage';
 import MyQueuesPage from './screens/MyQueuesPage';
 import AdminDashboardPage from './screens/AdminDashboardPage';
+import NotificationsScreen from './screens/NotificationsScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -95,6 +101,8 @@ function MainTabs() {
             iconName = focused ? 'account' : 'account-outline';
           } else if (route.name === 'AdminDashboard') {
             iconName = focused ? 'crown' : 'crown-outline';
+          } else if (route.name === 'Notifications') {
+            iconName = focused ? 'bell' : 'bell-outline';
           }
 
           return <Icon name={iconName} size={24} color={color} />;
@@ -113,6 +121,7 @@ function MainTabs() {
         options={{ title: 'My Queues' }}
       />
       <Tab.Screen name="Profile" component={ProfilePage} />
+      <Tab.Screen name="Notifications" component={NotificationsScreen} />
       {isAdmin && (
         <Tab.Screen 
           name="AdminDashboard" 
@@ -143,6 +152,41 @@ const createCustomTheme = (baseTheme, appTheme) => {
 function AppContent() {
   const { theme, isDarkMode } = useTheme();
   
+  // Initialize notification service
+  useEffect(() => {
+    const initNotifications = async () => {
+      try {
+        // Request notification permissions
+        await NotificationService.requestUserPermission();
+        
+        // Setup message listeners
+        NotificationService.setupMessageListeners(
+          // Callback for when notification is received in foreground
+          (notification) => {
+            console.log('Notification received in foreground:', notification);
+          },
+          // Callback for when notification is opened
+          (notification) => {
+            console.log('Notification opened:', notification);
+          }
+        );
+        
+        // Get FCM token
+        const token = await NotificationService.getToken();
+        console.log('FCM Token:', token);
+      } catch (error) {
+        console.error('Error initializing notifications:', error);
+      }
+    };
+    
+    initNotifications();
+    
+    // Cleanup listeners when component unmounts
+    return () => {
+      NotificationService.removeListeners();
+    };
+  }, []);
+  
   // Create navigation theme based on current app theme
   const navigationTheme = createCustomTheme(
     isDarkMode ? DarkTheme : DefaultTheme,
@@ -165,6 +209,7 @@ function AppContent() {
           <Stack.Screen name="MyQueuesPage" component={MyQueuesPage} />
           <Stack.Screen name="BusinessListPage" component={BusinessListPage} />
           <Stack.Screen name="AdminDashboardPage" component={AdminDashboardPage} />
+          <Stack.Screen name="NotificationsScreen" component={NotificationsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </>

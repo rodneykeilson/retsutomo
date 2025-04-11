@@ -15,7 +15,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { auth, firestore } from '../services/firebase';
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 import { useTheme } from '../theme/ThemeContext';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
@@ -37,7 +38,7 @@ function OngoingQueues() {
   const fetchQueues = async () => {
     try {
       setLoading(true);
-      const user = auth.currentUser;
+      const user = auth().currentUser;
       
       if (!user) {
         navigation.replace('LoginPage');
@@ -45,7 +46,7 @@ function OngoingQueues() {
       }
 
       // Fetch active queues from user's collection
-      const activeSnapshot = await firestore
+      const activeSnapshot = await firestore()
         .collection('users')
         .doc(user.uid)
         .collection('activeQueues')
@@ -72,7 +73,7 @@ function OngoingQueues() {
       for (const queueInfo of businessQueueIds) {
         try {
           // Check if this queue is still active in the business collection
-          const businessQueueSnapshot = await firestore
+          const businessQueueSnapshot = await firestore()
             .collection('businesses')
             .doc(queueInfo.businessId)
             .collection('queues')
@@ -96,7 +97,7 @@ function OngoingQueues() {
           // If the queue is no longer active in the business collection, remove it from user's active queues
           if (!isActive) {
             console.log(`Queue ${queueInfo.queueNumber} for business ${queueInfo.businessId} is no longer active, removing from user's active queues`);
-            await firestore
+            await firestore()
               .collection('users')
               .doc(user.uid)
               .collection('activeQueues')
@@ -106,7 +107,7 @@ function OngoingQueues() {
           }
 
           // Fetch business details
-          const businessDoc = await firestore.collection('businesses').doc(queueInfo.businessId).get();
+          const businessDoc = await firestore().collection('businesses').doc(queueInfo.businessId).get();
           if (businessDoc.exists) {
             activeQueuesData.push({
               id: queueInfo.docId,
@@ -149,11 +150,11 @@ function OngoingQueues() {
             text: 'Leave',
             style: 'destructive',
             onPress: async () => {
-              await firestore
+              await firestore()
                 .collection('businesses')
                 .doc(businessId)
                 .collection('queues')
-                .where('userId', '==', auth.currentUser.uid)
+                .where('userId', '==', auth().currentUser.uid)
                 .where('queueNumber', '==', queueNumber)
                 .where('status', 'in', ['active', 'waiting', 'current'])
                 .get()
@@ -167,9 +168,9 @@ function OngoingQueues() {
                 });
               
               // Remove from user's active queues
-              await firestore
+              await firestore()
                 .collection('users')
-                .doc(auth.currentUser.uid)
+                .doc(auth().currentUser.uid)
                 .collection('activeQueues')
                 .doc(queueId)
                 .delete();
@@ -303,7 +304,7 @@ function FinishedQueues() {
   const fetchQueues = async () => {
     try {
       setLoading(true);
-      const user = auth.currentUser;
+      const user = auth().currentUser;
       
       if (!user) {
         navigation.replace('LoginPage');
@@ -311,7 +312,7 @@ function FinishedQueues() {
       }
 
       // Fetch finished queues - increase limit to show more history
-      const finishedSnapshot = await firestore
+      const finishedSnapshot = await firestore()
         .collection('users')
         .doc(user.uid)
         .collection('queueHistory')
@@ -320,7 +321,7 @@ function FinishedQueues() {
         .get();
 
       // Also check business queues for finished entries that might not be in history
-      const businessQueuesSnapshot = await firestore
+      const businessQueuesSnapshot = await firestore()
         .collectionGroup('queues')
         .where('userId', '==', user.uid)
         .where('status', 'in', ['finished', 'completed'])
@@ -348,7 +349,7 @@ function FinishedQueues() {
         // Fetch business details
         if (queueData.businessId) {
           try {
-            const businessDoc = await firestore.collection('businesses').doc(queueData.businessId).get();
+            const businessDoc = await firestore().collection('businesses').doc(queueData.businessId).get();
             if (businessDoc.exists) {
               finishedQueuesData.push({
                 id: doc.id,
@@ -392,7 +393,7 @@ function FinishedQueues() {
         
         try {
           // Add to user's queue history for future reference
-          await firestore
+          await firestore()
             .collection('users')
             .doc(user.uid)
             .collection('queueHistory')
@@ -407,7 +408,7 @@ function FinishedQueues() {
             });
           
           // Fetch business details
-          const businessDoc = await firestore.collection('businesses').doc(businessId).get();
+          const businessDoc = await firestore().collection('businesses').doc(businessId).get();
           if (businessDoc.exists) {
             finishedQueuesData.push({
               id: doc.id,

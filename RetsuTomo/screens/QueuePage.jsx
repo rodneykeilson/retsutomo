@@ -12,9 +12,11 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { auth, firestore } from '../services/firebase';
 import firebase from '@react-native-firebase/app';
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 import { useTheme } from '../theme/ThemeContext';
+import NotificationService from '../services/NotificationService';
 
 export default function QueuePage() {
     const navigation = useNavigation();
@@ -35,7 +37,7 @@ export default function QueuePage() {
                 setLoading(true);
                 
                 // Fetch business details
-                const businessDoc = await firestore.collection('businesses').doc(businessId).get();
+                const businessDoc = await firestore().collection('businesses').doc(businessId).get();
                 if (!businessDoc.exists) {
                     Alert.alert('Error', 'Business not found');
                     navigation.goBack();
@@ -45,9 +47,9 @@ export default function QueuePage() {
                 setBusiness(businessDoc.data());
                 
                 // Check if user is already in queue
-                const user = auth.currentUser;
+                const user = auth().currentUser;
                 if (user) {
-                    const queueSnapshot = await firestore
+                    const queueSnapshot = await firestore()
                         .collection('businesses')
                         .doc(businessId)
                         .collection('queues')
@@ -78,7 +80,7 @@ export default function QueuePage() {
         try {
             setJoining(true);
             
-            const user = auth.currentUser;
+            const user = auth().currentUser;
             if (!user) {
                 Alert.alert('Error', 'You must be logged in to join a queue');
                 navigation.navigate('LoginPage');
@@ -92,7 +94,7 @@ export default function QueuePage() {
             }
             
             // Check if user is already in queue
-            const existingQueueSnapshot = await firestore
+            const existingQueueSnapshot = await firestore()
                 .collection('businesses')
                 .doc(businessId)
                 .collection('queues')
@@ -106,7 +108,7 @@ export default function QueuePage() {
             }
             
             // Get current queue length
-            const queueSnapshot = await firestore
+            const queueSnapshot = await firestore()
                 .collection('businesses')
                 .doc(businessId)
                 .collection('queues')
@@ -125,12 +127,12 @@ export default function QueuePage() {
             const joinedAt = firebase.firestore.Timestamp.now();
             
             // Get user profile to ensure we have the latest display name
-            const userProfile = await firestore.collection('users').doc(user.uid).get();
+            const userProfile = await firestore().collection('users').doc(user.uid).get();
             const userData = userProfile.exists ? userProfile.data() : {};
             const userName = userData.displayName || user.displayName || 'Anonymous';
             
             // Add to business queues
-            const queueRef = await firestore
+            const queueRef = await firestore()
                 .collection('businesses')
                 .doc(businessId)
                 .collection('queues')
@@ -145,7 +147,7 @@ export default function QueuePage() {
                 });
             
             // Add to user's active queues
-            await firestore
+            await firestore()
                 .collection('users')
                 .doc(user.uid)
                 .collection('activeQueues')
@@ -159,6 +161,18 @@ export default function QueuePage() {
                     userName: userName,
                     estimatedWaitTime: business.estimatedTimePerCustomer * (queueNumber - 1)
                 });
+            
+            // Send notification to user and business owner
+            await NotificationService.sendQueueNotification(
+                user.uid,
+                businessId,
+                queueNumber,
+                'active',
+                {
+                    businessName: business.name,
+                    estimatedWaitTime: business.estimatedTimePerCustomer * (queueNumber - 1)
+                }
+            );
             
             // Update queue status
             const queueData = {
@@ -180,39 +194,42 @@ export default function QueuePage() {
     };
     
     const handleLeaveQueue = async () => {
-        try {
-            setLeaving(true);
-            
-            // Confirm with user
-            Alert.alert(
-                'Leave Queue',
-                'Are you sure you want to leave this queue?',
-                [
-                    {
-                        text: 'Cancel',
-                        style: 'cancel',
-                        onPress: () => setLeaving(false)
-                    },
-                    {
-                        text: 'Leave',
-                        style: 'destructive',
-                        onPress: async () => {
-                            const user = auth.currentUser;
-                            const leftAt = firebase.firestore.Timestamp.now();
+        if (!queueStatus) return;
+        
+        Alert.alert(
+            'Leave Queue',
+            'Are you sure you want to leave the queue?',
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Leave',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setLoading(true);
+                            const user = auth().currentUser;
                             
-                            // Update queue status in business
-                            await firestore
+                            if (!user) {
+                                navigation.replace('LoginPage');
+                                return;
+                            }
+                            
+                            // Update business queue status to cancelled
+                            await firestore()
                                 .collection('businesses')
                                 .doc(businessId)
                                 .collection('queues')
                                 .doc(queueStatus.id)
                                 .update({
                                     status: 'cancelled',
-                                    leftAt: leftAt
+                                    leftAt: firebase.firestore.Timestamp.now(),
                                 });
                             
                             // Remove from user's active queues
-                            await firestore
+                            await firestore()
                                 .collection('users')
                                 .doc(user.uid)
                                 .collection('activeQueues')
@@ -220,7 +237,7 @@ export default function QueuePage() {
                                 .delete();
                             
                             // Add to user's queue history
-                            await firestore
+                            await firestore()
                                 .collection('users')
                                 .doc(user.uid)
                                 .collection('queueHistory')
@@ -229,22 +246,36 @@ export default function QueuePage() {
                                     businessName: business.name,
                                     queueNumber: queueStatus.queueNumber,
                                     joinedAt: queueStatus.joinedAt,
-                                    leftAt: leftAt,
-                                    status: 'cancelled'
+                                    leftAt: firebase.firestore.Timestamp.now(),
+                                    status: 'cancelled',
+                                    userName: user.displayName || 'Anonymous'
                                 });
+                                
+                            // Send notification
+                            await NotificationService.sendQueueNotification(
+                                user.uid,
+                                businessId,
+                                queueStatus.queueNumber,
+                                'cancelled',
+                                {
+                                    businessName: business.name,
+                                    cancelledByUser: true,
+                                    leftAt: new Date().toISOString()
+                                }
+                            );
                             
                             setQueueStatus(null);
                             Alert.alert('Success', 'You have left the queue.');
-                            setLeaving(false);
+                        } catch (error) {
+                            console.error('Error leaving queue:', error);
+                            Alert.alert('Error', error.message);
+                        } finally {
+                            setLoading(false);
                         }
-                    }
-                ]
-            );
-        } catch (error) {
-            console.error('Error leaving queue:', error);
-            Alert.alert('Error', error.message);
-            setLeaving(false);
-        }
+                    },
+                },
+            ]
+        );
     };
     
     if (loading) {

@@ -17,7 +17,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { auth, firestore } from '../services/firebase';
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 import { useTheme } from '../theme/ThemeContext';
 import QueueManagement from '../components/QueueManagement';
 import BusinessDetailsForm from '../components/BusinessDetailsForm';
@@ -43,14 +44,14 @@ export default function ManageBusinessesPage({ navigation }) {
   const fetchUserBusinesses = async () => {
     try {
       setLoading(true);
-      const user = auth.currentUser;
+      const user = auth().currentUser;
       if (!user) {
         Alert.alert('Error', 'You must be logged in to manage businesses.');
         return;
       }
 
       // Fetch all businesses owned by the user
-      const businessSnapshot = await firestore
+      const businessSnapshot = await firestore()
         .collection('businesses')
         .where('ownerId', '==', user.uid)
         .get();
@@ -85,14 +86,14 @@ export default function ManageBusinessesPage({ navigation }) {
 
     try {
       setCreatingBusiness(true);
-      const user = auth.currentUser;
+      const user = auth().currentUser;
       if (!user) {
         Alert.alert('Error', 'You must be logged in to register a business.');
         return;
       }
 
       // Check if the business name already exists for this user
-      const existingBusinessSnapshot = await firestore
+      const existingBusinessSnapshot = await firestore()
         .collection('businesses')
         .where('ownerId', '==', user.uid)
         .where('name', '==', businessName.trim())
@@ -105,7 +106,7 @@ export default function ManageBusinessesPage({ navigation }) {
       }
 
       // Get user profile data for owner name
-      const userDoc = await firestore.collection('users').doc(user.uid).get();
+      const userDoc = await firestore().collection('users').doc(user.uid).get();
       const userData = userDoc.exists ? userDoc.data() : {};
 
       // Add the business to the `businesses` collection
@@ -122,7 +123,7 @@ export default function ManageBusinessesPage({ navigation }) {
         createdAt: new Date(),
       };
 
-      const businessRef = await firestore.collection('businesses').add(businessData);
+      const businessRef = await firestore().collection('businesses').add(businessData);
       
       // Add the new business to the list and select it
       const newBusiness = {
@@ -155,7 +156,7 @@ export default function ManageBusinessesPage({ navigation }) {
       const createdBusinessId = await sampleDataService.createSampleBusinessForUser();
       
       if (createdBusinessId) {
-        const businessDoc = await firestore.collection('businesses').doc(createdBusinessId).get();
+        const businessDoc = await firestore().collection('businesses').doc(createdBusinessId).get();
         if (businessDoc.exists) {
           const newBusiness = {
             id: createdBusinessId,
@@ -217,7 +218,7 @@ export default function ManageBusinessesPage({ navigation }) {
               setLoading(true);
               
               // Delete the business document
-              await firestore.collection('businesses').doc(businessId).delete();
+              await firestore().collection('businesses').doc(businessId).delete();
               
               // Remove from local state
               const updatedBusinesses = businesses.filter(b => b.id !== businessId);

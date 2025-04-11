@@ -8,10 +8,12 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { firestore, auth } from '../services/firebase';
-import { firebase } from '@react-native-firebase/app';
+import firebase from '@react-native-firebase/app';
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
+import NotificationService from '../services/NotificationService';
 
 const QueueManagement = ({ business }) => {
   const { theme } = useTheme();
@@ -27,7 +29,7 @@ const QueueManagement = ({ business }) => {
     }
 
     // Set up real-time listener for queues
-    const unsubscribe = firestore
+    const unsubscribe = firestore()
       .collection('businesses')
       .doc(businessId)
       .collection('queues')
@@ -62,7 +64,7 @@ const QueueManagement = ({ business }) => {
       const finishedAt = firebase.firestore.FieldValue.serverTimestamp();
       
       // Update the queue status to finished
-      await firestore
+      await firestore()
         .collection('businesses')
         .doc(businessId)
         .collection('queues')
@@ -76,7 +78,7 @@ const QueueManagement = ({ business }) => {
       if (nextCustomer.userId) {
         try {
           // First check if the user has this queue in their active queues
-          const userActiveQueueRef = await firestore
+          const userActiveQueueRef = await firestore()
             .collection('users')
             .doc(nextCustomer.userId)
             .collection('activeQueues')
@@ -86,7 +88,7 @@ const QueueManagement = ({ business }) => {
           
           // Delete from active queues
           if (!userActiveQueueRef.empty) {
-            await firestore
+            await firestore()
               .collection('users')
               .doc(nextCustomer.userId)
               .collection('activeQueues')
@@ -95,12 +97,12 @@ const QueueManagement = ({ business }) => {
           }
           
           // Get user data to ensure we have the correct display name
-          const userDoc = await firestore.collection('users').doc(nextCustomer.userId).get();
+          const userDoc = await firestore().collection('users').doc(nextCustomer.userId).get();
           const userData = userDoc.exists ? userDoc.data() : {};
           const userName = userData.displayName || nextCustomer.userName || 'Anonymous';
           
           // Add to user's queue history
-          await firestore
+          await firestore()
             .collection('users')
             .doc(nextCustomer.userId)
             .collection('queueHistory')
@@ -113,6 +115,18 @@ const QueueManagement = ({ business }) => {
               status: 'completed',
               userName: userName
             });
+            
+          // Send notification to user
+          await NotificationService.sendQueueNotification(
+            nextCustomer.userId,
+            businessId,
+            nextCustomer.queueNumber,
+            'finished',
+            {
+              businessName: businessData.name,
+              finishedAt: new Date().toISOString()
+            }
+          );
         } catch (userError) {
           console.error('Error updating user queue records:', userError);
           // Continue with the process even if updating user records fails
@@ -126,95 +140,92 @@ const QueueManagement = ({ business }) => {
     }
   };
 
-  const handleRemoveFromQueue = (queueId, userName) => {
-    Alert.alert(
-      'Remove Customer',
-      `Are you sure you want to remove ${userName || 'this customer'} from the queue?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Get the queue data first to access user ID and queue number
-              const queueDoc = await firestore
-                .collection('businesses')
-                .doc(businessId)
-                .collection('queues')
-                .doc(queueId)
-                .get();
-              
-              if (!queueDoc.exists) {
-                Alert.alert('Error', 'Queue entry not found');
-                return;
-              }
-              
-              const queueData = queueDoc.data();
-              const cancelledAt = firebase.firestore.FieldValue.serverTimestamp();
-              
-              // Update queue status to cancelled
-              await firestore
-                .collection('businesses')
-                .doc(businessId)
-                .collection('queues')
-                .doc(queueId)
-                .update({
-                  status: 'cancelled',
-                  cancelledAt: cancelledAt,
-                });
-              
-              // Remove from user's active queues and add to history
-              if (queueData.userId) {
-                try {
-                  // First check if the user has this queue in their active queues
-                  const userActiveQueueRef = await firestore
-                    .collection('users')
-                    .doc(queueData.userId)
-                    .collection('activeQueues')
-                    .where('businessId', '==', businessId)
-                    .where('queueNumber', '==', queueData.queueNumber)
-                    .get();
-                  
-                  // Delete from active queues
-                  if (!userActiveQueueRef.empty) {
-                    await firestore
-                      .collection('users')
-                      .doc(queueData.userId)
-                      .collection('activeQueues')
-                      .doc(userActiveQueueRef.docs[0].id)
-                      .delete();
-                  }
-                  
-                  // Add to user's queue history
-                  await firestore
-                    .collection('users')
-                    .doc(queueData.userId)
-                    .collection('queueHistory')
-                    .add({
-                      businessId: businessId,
-                      businessName: businessData.name,
-                      queueNumber: queueData.queueNumber,
-                      joinedAt: queueData.joinedAt,
-                      cancelledAt: cancelledAt,
-                      status: 'cancelled'
-                    });
-                } catch (userError) {
-                  console.error('Error updating user queue records:', userError);
-                  // Continue with the process even if updating user records fails
-                }
-              }
-            } catch (error) {
-              console.error('Error removing customer:', error);
-              Alert.alert('Error', 'Failed to remove customer from queue.');
+  const handleRemoveFromQueue = async (queueId, userId) => {
+    try {
+      // Get queue details before removing
+      const queueDoc = await firestore()
+        .collection('businesses')
+        .doc(businessId)
+        .collection('queues')
+        .doc(queueId)
+        .get();
+      
+      const queueData = queueDoc.exists ? queueDoc.data() : null;
+      
+      if (!queueData) {
+        Alert.alert('Error', 'Queue not found');
+        return;
+      }
+      
+      // Update queue status to cancelled
+      await firestore()
+        .collection('businesses')
+        .doc(businessId)
+        .collection('queues')
+        .doc(queueId)
+        .update({
+          status: 'cancelled',
+          cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+
+      // Remove from user's active queues and add to history
+      if (userId) {
+        try {
+          // Find in user's active queues
+          const userActiveQueueRef = await firestore()
+            .collection('users')
+            .doc(userId)
+            .collection('activeQueues')
+            .where('businessId', '==', businessId)
+            .where('queueNumber', '==', queueData.queueNumber)
+            .get();
+          
+          // Delete from active queues
+          if (!userActiveQueueRef.empty) {
+            await firestore()
+              .collection('users')
+              .doc(userId)
+              .collection('activeQueues')
+              .doc(userActiveQueueRef.docs[0].id)
+              .delete();
+          }
+          
+          // Add to user's queue history
+          await firestore()
+            .collection('users')
+            .doc(userId)
+            .collection('queueHistory')
+            .add({
+              businessId: businessId,
+              businessName: businessData.name,
+              queueNumber: queueData.queueNumber,
+              joinedAt: queueData.joinedAt,
+              cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+              status: 'cancelled',
+              userName: queueData.userName || 'Anonymous'
+            });
+            
+          // Send notification to user
+          await NotificationService.sendQueueNotification(
+            userId,
+            businessId,
+            queueData.queueNumber,
+            'cancelled',
+            {
+              businessName: businessData.name,
+              cancelledAt: new Date().toISOString()
             }
-          },
-        },
-      ]
-    );
+          );
+        } catch (userError) {
+          console.error('Error updating user queue records:', userError);
+        }
+      }
+
+      Alert.alert('Success', 'Customer has been removed from the queue.');
+    } catch (error) {
+      console.error('Error removing customer:', error);
+      Alert.alert('Error', 'Failed to remove customer.');
+    }
   };
 
   const toggleBusinessStatus = async () => {
@@ -225,7 +236,7 @@ const QueueManagement = ({ business }) => {
     
     try {
       const newStatus = businessData.status === 'open' ? 'closed' : 'open';
-      await firestore
+      await firestore()
         .collection('businesses')
         .doc(businessId)
         .update({
@@ -287,7 +298,7 @@ const QueueManagement = ({ business }) => {
           ) : (
             <TouchableOpacity 
               style={[styles.removeButton, { borderColor: theme.error }]}
-              onPress={() => handleRemoveFromQueue(item.id, item.userName)}
+              onPress={() => handleRemoveFromQueue(item.id, item.userId)}
             >
               <Icon name="close" size={16} color={theme.error} />
               <Text style={[styles.removeButtonText, { color: theme.error }]}>Remove</Text>

@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { firestore } from '../services/firebase';
+import firestore from '@react-native-firebase/firestore';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -60,7 +60,7 @@ const BusinessDetailsForm = ({ business, businessId, onUpdate }) => {
       
       if (businessId) {
         // Update existing business
-        await firestore.collection('businesses').doc(businessId).update(businessData);
+        await firestore().collection('businesses').doc(businessId).update(businessData);
         Alert.alert('Success', 'Business details updated successfully');
       } else {
         // This should not happen in this component as it's for editing only
