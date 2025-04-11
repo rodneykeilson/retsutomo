@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -6,6 +6,9 @@ import { View, StyleSheet, StatusBar } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
+import { firebase } from '@react-native-firebase/app';
+import '@react-native-firebase/auth';
+import '@react-native-firebase/firestore';
 
 import LandingPage from './screens/LandingPage';
 import LoginPage from './screens/LoginPage';
@@ -46,6 +49,26 @@ const TabBarIndicator = ({ state, descriptors, navigation }) => {
 // Main tab navigator for authenticated users
 function MainTabs() {
   const { theme } = useTheme();
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  useEffect(() => {
+    // Check if the current user is an admin
+    const checkAdminStatus = async () => {
+      try {
+        const user = firebase.auth().currentUser;
+        if (user) {
+          const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+          if (userDoc.exists && userDoc.data().role === 'admin') {
+            setIsAdmin(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      }
+    };
+    
+    checkAdminStatus();
+  }, []);
   
   return (
     <Tab.Navigator
@@ -90,11 +113,13 @@ function MainTabs() {
         options={{ title: 'My Queues' }}
       />
       <Tab.Screen name="Profile" component={ProfilePage} />
-      <Tab.Screen 
-        name="AdminDashboard" 
-        component={AdminDashboardPage}
-        options={{ title: 'Admin Dashboard' }}
-      />
+      {isAdmin && (
+        <Tab.Screen 
+          name="AdminDashboard" 
+          component={AdminDashboardPage}
+          options={{ title: 'Admin' }}
+        />
+      )}
     </Tab.Navigator>
   );
 }

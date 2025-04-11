@@ -77,11 +77,8 @@ export default function DashboardPage() {
         const userData = userDoc.data();
         setUserData(userData);
         
-        // Check if user is an admin and redirect if needed
-        if (userData.role === 'admin') {
-          navigation.replace('AdminDashboardPage');
-          return;
-        }
+        // No longer redirecting admin users, just setting a flag
+        // This allows admins to use the regular app features too
       }
 
       // Fetch recent businesses
