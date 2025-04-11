@@ -41,7 +41,39 @@ export default function DashboardPage() {
 
       // Fetch user data
       const userDoc = await firestore.collection('users').doc(user.uid).get();
-      if (userDoc.exists) {
+      
+      // If user document doesn't exist, create it from profile or create new
+      if (!userDoc.exists) {
+        // Check if profile exists
+        const profileDoc = await firestore.collection('profiles').doc(user.uid).get();
+        let userData = {};
+        
+        if (profileDoc.exists) {
+          // Migrate from profile
+          const profileData = profileDoc.data();
+          userData = {
+            displayName: profileData.name || user.displayName || 'User',
+            email: user.email,
+            role: 'user', // Default role
+            createdAt: profileData.createdAt || new Date(),
+            migratedAt: new Date(),
+          };
+        } else {
+          // Create new user document
+          userData = {
+            displayName: user.displayName || 'User',
+            email: user.email,
+            role: 'user',
+            createdAt: new Date(),
+          };
+        }
+        
+        // Save the user data
+        await firestore.collection('users').doc(user.uid).set(userData);
+        setUserData(userData);
+        
+        console.log('Created user document for:', user.uid);
+      } else {
         const userData = userDoc.data();
         setUserData(userData);
         
