@@ -64,6 +64,7 @@ export default function AdminDashboardPage() {
         .collection('businesses')
         .where('approvalStatus', '==', 'pending')
         .orderBy('createdAt', 'desc')
+        .limit(10)
         .get();
 
       const businessesData = businessesSnapshot.docs.map(doc => ({

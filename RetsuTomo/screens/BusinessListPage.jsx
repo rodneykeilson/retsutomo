@@ -39,8 +39,12 @@ export default function BusinessListPage() {
                     await sampleDataService.populateSampleData();
                 }
                 
-                // Fetch businesses
-                const businessSnapshot = await firestore.collection('businesses').get();
+                // Fetch businesses - only show approved businesses
+                const businessSnapshot = await firestore
+                    .collection('businesses')
+                    .where('approvalStatus', '==', 'approved')
+                    .get();
+                
                 const businessData = businessSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data(),

@@ -319,277 +319,193 @@ export default function ManageBusinessesPage({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
       
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={[styles.backButton, { backgroundColor: theme.card }]}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-left" size={24} color={theme.text} />
+        </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Manage Businesses</Text>
-        <Text style={[styles.subtitle, { color: theme.secondaryText }]}>
-          {businesses.length > 0 
-            ? `You have ${businesses.length} ${businesses.length === 1 ? 'business' : 'businesses'}`
-            : 'Create your first business to start managing queues'}
-        </Text>
+        <View style={styles.placeholder} />
       </View>
 
-      {businesses.length > 0 ? (
+      <View style={styles.businessListContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.businessListContent}
+        >
+          {businesses.map(business => renderBusinessItem({ item: business }))}
+          
+          <TouchableOpacity 
+            style={[styles.addBusinessButton, { backgroundColor: theme.card }]}
+            onPress={() => setShowCreateForm(true)}
+          >
+            <Icon name="plus" size={24} color={theme.primary} />
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+
+      {selectedBusiness ? (
         <>
-          <View style={styles.businessList}>
-            <FlatList
-              data={businesses}
-              renderItem={renderBusinessItem}
-              keyExtractor={item => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.businessListContent}
-            />
-            <TouchableOpacity
-              style={[styles.addBusinessButton, { 
-                backgroundColor: theme.primaryLight,
-                borderColor: theme.border
-              }]}
-              onPress={() => setShowCreateForm(true)}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity 
+              style={[
+                styles.tab, 
+                activeTab === 'queue' && [styles.activeTab, { backgroundColor: theme.primaryLight }]
+              ]}
+              onPress={() => setActiveTab('queue')}
+              disabled={selectedBusiness.approvalStatus !== 'approved'}
             >
-              <Icon name="plus" size={24} color={theme.primary} />
+              <Icon 
+                name="ticket-outline" 
+                size={20} 
+                color={activeTab === 'queue' ? theme.primary : theme.secondaryText} 
+                style={styles.tabIcon}
+              />
+              <Text 
+                style={[
+                  styles.tabText, 
+                  { color: activeTab === 'queue' ? theme.primary : theme.secondaryText }
+                ]}
+              >
+                Queue Management
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[
+                styles.tab, 
+                activeTab === 'details' && [styles.activeTab, { backgroundColor: theme.primaryLight }]
+              ]}
+              onPress={() => setActiveTab('details')}
+            >
+              <Icon 
+                name="information-outline" 
+                size={20} 
+                color={activeTab === 'details' ? theme.primary : theme.secondaryText} 
+                style={styles.tabIcon}
+              />
+              <Text 
+                style={[
+                  styles.tabText, 
+                  { color: activeTab === 'details' ? theme.primary : theme.secondaryText }
+                ]}
+              >
+                Business Details
+              </Text>
             </TouchableOpacity>
           </View>
           
-          {selectedBusiness && (
-            <>
-              <View style={styles.tabContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.tab, 
-                    { backgroundColor: theme.card },
-                    activeTab === 'queue' && [styles.activeTab, { backgroundColor: theme.primaryLight }]
-                  ]}
-                  onPress={() => setActiveTab('queue')}
-                >
-                  <Icon 
-                    name="account-multiple" 
-                    size={20} 
-                    color={activeTab === 'queue' ? theme.primary : theme.secondaryText} 
-                    style={styles.tabIcon} 
-                  />
-                  <Text 
-                    style={[
-                      styles.tabText, 
-                      { color: theme.secondaryText },
-                      activeTab === 'queue' && [styles.activeTabText, { color: theme.primary }]
-                    ]}
-                  >
-                    Queue
+          <View style={styles.content}>
+            {activeTab === 'queue' ? (
+              selectedBusiness.approvalStatus === 'approved' ? (
+                <QueueManagement business={selectedBusiness} />
+              ) : (
+                <View style={[styles.approvalRequiredContainer, { backgroundColor: theme.card }]}>
+                  <Icon name="clock-alert-outline" size={60} color={theme.warning} />
+                  <Text style={[styles.approvalRequiredTitle, { color: theme.text }]}>
+                    Approval Required
                   </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.tab, 
-                    { backgroundColor: theme.card },
-                    activeTab === 'details' && [styles.activeTab, { backgroundColor: theme.primaryLight }]
-                  ]}
-                  onPress={() => setActiveTab('details')}
-                >
-                  <Icon 
-                    name="store-settings" 
-                    size={20} 
-                    color={activeTab === 'details' ? theme.primary : theme.secondaryText} 
-                    style={styles.tabIcon} 
-                  />
-                  <Text 
-                    style={[
-                      styles.tabText, 
-                      { color: theme.secondaryText },
-                      activeTab === 'details' && [styles.activeTabText, { color: theme.primary }]
-                    ]}
-                  >
-                    Details
+                  <Text style={[styles.approvalRequiredText, { color: theme.secondaryText }]}>
+                    Your business is {selectedBusiness.approvalStatus === 'rejected' ? 'rejected' : 'pending approval'}. 
+                    {selectedBusiness.approvalStatus === 'pending' ? 
+                      'You cannot manage queues until an administrator approves your business.' :
+                      'Please update your business details and contact support for assistance.'}
                   </Text>
-                </TouchableOpacity>
-              </View>
-              
-              <View style={styles.content}>
-                {activeTab === 'queue' ? (
-                  <QueueManagement businessId={selectedBusinessId} />
-                ) : (
-                  <BusinessDetailsForm 
-                    business={selectedBusiness} 
-                    businessId={selectedBusinessId} 
-                    onUpdate={handleBusinessUpdate} 
-                  />
-                )}
-              </View>
-            </>
-          )}
+                </View>
+              )
+            ) : (
+              <BusinessDetailsForm 
+                business={selectedBusiness} 
+                businessId={selectedBusinessId} 
+                onUpdate={handleBusinessUpdate}
+              />
+            )}
+          </View>
         </>
       ) : (
-        <ScrollView style={styles.content}>
-          <View style={styles.registerContainer}>
-            <View style={[styles.formCard, { backgroundColor: theme.card }]}>
-              <Text style={[styles.formTitle, { color: theme.text }]}>Create a Business</Text>
-              
-              <Text style={[styles.label, { color: theme.text }]}>Business Name</Text>
-              <TextInput
-                style={[styles.input, { 
-                  backgroundColor: theme.isDarkMode ? theme.background : '#f5f5f5',
-                  color: theme.text,
-                  borderColor: theme.border
-                }]}
-                placeholder="Enter business name"
-                placeholderTextColor={theme.secondaryText}
-                value={businessName}
-                onChangeText={setBusinessName}
-              />
-              
-              <Text style={[styles.label, { color: theme.text }]}>Business Description</Text>
-              <TextInput
-                style={[styles.input, styles.textArea, { 
-                  backgroundColor: theme.isDarkMode ? theme.background : '#f5f5f5',
-                  color: theme.text,
-                  borderColor: theme.border
-                }]}
-                placeholder="Describe your business"
-                placeholderTextColor={theme.secondaryText}
-                value={businessDescription}
-                onChangeText={setBusinessDescription}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-              
-              <TouchableOpacity
-                style={[styles.registerButton, { backgroundColor: theme.primary }]}
-                onPress={handleRegisterBusiness}
-                disabled={creatingBusiness}
-              >
-                {creatingBusiness ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Icon name="store-plus" size={20} color="#fff" style={styles.buttonIcon} />
-                    <Text style={styles.registerButtonText}>Register Business</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.orDivider}>
-              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-              <Text style={[styles.orText, { color: theme.secondaryText }]}>OR</Text>
-              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-            </View>
-            
-            <TouchableOpacity
-              style={[styles.sampleButton, { 
-                backgroundColor: theme.primaryLight,
-                borderColor: theme.border
-              }]}
-              onPress={handleCreateSampleBusiness}
-              disabled={creatingBusiness}
-            >
-              {creatingBusiness ? (
-                <ActivityIndicator size="small" color={theme.primary} />
-              ) : (
-                <>
-                  <Icon name="rocket-launch" size={20} color={theme.primary} style={styles.buttonIcon} />
+        <View style={styles.content}>
+          {showCreateForm ? (
+            <View style={styles.registerContainer}>
+              <View style={[styles.formCard, { backgroundColor: theme.card }]}>
+                <Text style={[styles.formTitle, { color: theme.text }]}>Register New Business</Text>
+                
+                <Text style={[styles.label, { color: theme.text }]}>Business Name</Text>
+                <TextInput 
+                  style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                  placeholder="Enter business name"
+                  placeholderTextColor={theme.secondaryText}
+                  value={businessName}
+                  onChangeText={setBusinessName}
+                />
+                
+                <Text style={[styles.label, { color: theme.text }]}>Description</Text>
+                <TextInput 
+                  style={[styles.input, styles.textArea, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                  placeholder="Describe your business"
+                  placeholderTextColor={theme.secondaryText}
+                  value={businessDescription}
+                  onChangeText={setBusinessDescription}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+                
+                <TouchableOpacity 
+                  style={[styles.registerButton, { backgroundColor: theme.primary }]}
+                  onPress={handleRegisterBusiness}
+                  disabled={creatingBusiness}
+                >
+                  {creatingBusiness ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Icon name="store-plus" size={20} color="#fff" style={styles.buttonIcon} />
+                      <Text style={styles.registerButtonText}>Register Business</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                
+                <View style={styles.orDivider}>
+                  <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+                  <Text style={[styles.orText, { color: theme.secondaryText }]}>or</Text>
+                  <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+                </View>
+                
+                <TouchableOpacity 
+                  style={[styles.sampleButton, { backgroundColor: theme.primaryLight, borderColor: theme.border }]}
+                  onPress={handleCreateSampleBusiness}
+                  disabled={creatingBusiness}
+                >
+                  <Icon name="flash" size={20} color={theme.primary} style={styles.buttonIcon} />
                   <Text style={[styles.sampleButtonText, { color: theme.primary }]}>Create Sample Business</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      )}
-
-      {/* Create Business Modal */}
-      <Modal
-        visible={showCreateForm}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCreateForm(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>Create New Business</Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowCreateForm(false)}
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.emptyStateContainer, { backgroundColor: theme.card }]}>
+              <Icon name="store-outline" size={60} color={theme.secondaryText} />
+              <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
+                No Business Selected
+              </Text>
+              <Text style={[styles.emptyStateText, { color: theme.secondaryText }]}>
+                Select a business from the list above or create a new one
+              </Text>
+              <TouchableOpacity 
+                style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
+                onPress={() => setShowCreateForm(true)}
               >
-                <Icon name="close" size={24} color={theme.text} />
+                <Text style={styles.emptyStateButtonText}>Create New Business</Text>
               </TouchableOpacity>
             </View>
-            
-            <ScrollView style={styles.modalBody}>
-              <Text style={[styles.label, { color: theme.text }]}>Business Name</Text>
-              <TextInput
-                style={[styles.input, { 
-                  backgroundColor: theme.isDarkMode ? theme.background : '#f5f5f5',
-                  color: theme.text,
-                  borderColor: theme.border
-                }]}
-                placeholder="Enter business name"
-                placeholderTextColor={theme.secondaryText}
-                value={businessName}
-                onChangeText={setBusinessName}
-              />
-              
-              <Text style={[styles.label, { color: theme.text }]}>Business Description</Text>
-              <TextInput
-                style={[styles.input, styles.textArea, { 
-                  backgroundColor: theme.isDarkMode ? theme.background : '#f5f5f5',
-                  color: theme.text,
-                  borderColor: theme.border
-                }]}
-                placeholder="Describe your business"
-                placeholderTextColor={theme.secondaryText}
-                value={businessDescription}
-                onChangeText={setBusinessDescription}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-              
-              <TouchableOpacity
-                style={[styles.registerButton, { backgroundColor: theme.primary }]}
-                onPress={handleRegisterBusiness}
-                disabled={creatingBusiness}
-              >
-                {creatingBusiness ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Icon name="store-plus" size={20} color="#fff" style={styles.buttonIcon} />
-                    <Text style={styles.registerButtonText}>Create Business</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-              
-              <View style={styles.orDivider}>
-                <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-                <Text style={[styles.orText, { color: theme.secondaryText }]}>OR</Text>
-                <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-              </View>
-              
-              <TouchableOpacity
-                style={[styles.sampleButton, { 
-                  backgroundColor: theme.primaryLight,
-                  borderColor: theme.border
-                }]}
-                onPress={handleCreateSampleBusiness}
-                disabled={creatingBusiness}
-              >
-                {creatingBusiness ? (
-                  <ActivityIndicator size="small" color={theme.primary} />
-                ) : (
-                  <>
-                    <Icon name="rocket-launch" size={20} color={theme.primary} style={styles.buttonIcon} />
-                    <Text style={[styles.sampleButtonText, { color: theme.primary }]}>Create Sample Business</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+          )}
         </View>
-      </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -609,25 +525,31 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: '#281b52',
   },
-  subtitle: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#9992a7',
-    marginTop: 4,
+  placeholder: {
+    width: 40,
   },
-  businessList: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 24,
+  businessListContainer: {
+    paddingHorizontal: 24,
   },
   businessListContent: {
     paddingRight: 16,
@@ -730,9 +652,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#9992a7',
   },
-  activeTabText: {
-    color: '#56409e',
-  },
   content: {
     flex: 1,
     paddingHorizontal: 24,
@@ -819,36 +738,55 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  modalOverlay: {
+  emptyStateContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    width: '90%',
-    maxHeight: '80%',
-    elevation: 5,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
   },
-  modalTitle: {
+  emptyStateTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#281b52',
+    marginBottom: 8,
   },
-  closeButton: {
-    padding: 4,
+  emptyStateText: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#9992a7',
+    marginBottom: 16,
+    textAlign: 'center',
   },
-  modalBody: {
+  emptyStateButton: {
+    backgroundColor: '#56409e',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  emptyStateButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  approvalRequiredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
+  },
+  approvalRequiredTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#281b52',
+    marginBottom: 8,
+  },
+  approvalRequiredText: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#9992a7',
+    marginBottom: 16,
+    textAlign: 'center',
   },
 });

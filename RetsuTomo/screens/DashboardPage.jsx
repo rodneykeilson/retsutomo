@@ -87,6 +87,7 @@ export default function DashboardPage() {
       // Fetch recent businesses
       const businessesSnapshot = await firestore
         .collection('businesses')
+        .where('approvalStatus', '==', 'approved')
         .orderBy('createdAt', 'desc')
         .limit(5)
         .get();
