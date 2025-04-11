@@ -11,28 +11,20 @@ import {
 import { firestore, auth } from '../services/firebase';
 import { firebase } from '@react-native-firebase/app';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useTheme } from '../theme/ThemeContext';
 
-const QueueManagement = ({ businessId }) => {
+const QueueManagement = ({ business }) => {
+  const { theme } = useTheme();
   const [activeQueues, setActiveQueues] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [business, setBusiness] = useState(null);
+  const [businessData, setBusinessData] = useState(business || null);
+  const businessId = business?.id;
 
   useEffect(() => {
     if (!businessId) return;
-
-    // Fetch business details
-    const fetchBusinessDetails = async () => {
-      try {
-        const businessDoc = await firestore.collection('businesses').doc(businessId).get();
-        if (businessDoc.exists) {
-          setBusiness(businessDoc.data());
-        }
-      } catch (error) {
-        console.error('Error fetching business details:', error);
-      }
-    };
-
-    fetchBusinessDetails();
+    if (business) {
+      setBusinessData(business);
+    }
 
     // Set up real-time listener for queues
     const unsubscribe = firestore
@@ -57,7 +49,7 @@ const QueueManagement = ({ businessId }) => {
       );
 
     return () => unsubscribe();
-  }, [businessId]);
+  }, [businessId, business]);
 
   const handleServeNext = async () => {
     if (activeQueues.length === 0) {
@@ -120,10 +112,13 @@ const QueueManagement = ({ businessId }) => {
   };
 
   const toggleBusinessStatus = async () => {
-    if (!business) return;
+    if (!businessData || businessData.approvalStatus !== 'approved') {
+      Alert.alert('Error', 'Your business must be approved before you can open it.');
+      return;
+    }
     
     try {
-      const newStatus = business.status === 'open' ? 'closed' : 'open';
+      const newStatus = businessData.status === 'open' ? 'closed' : 'open';
       await firestore
         .collection('businesses')
         .doc(businessId)
@@ -131,8 +126,8 @@ const QueueManagement = ({ businessId }) => {
           status: newStatus,
         });
         
-      setBusiness({
-        ...business,
+      setBusinessData({
+        ...businessData,
         status: newStatus,
       });
       
@@ -146,103 +141,149 @@ const QueueManagement = ({ businessId }) => {
     }
   };
 
-  const renderQueueItem = ({ item, index }) => (
-    <View style={styles.queueItem}>
-      <View style={styles.queueNumberContainer}>
-        <Text style={styles.queueNumber}>{item.queueNumber}</Text>
-        {index === 0 && (
-          <View style={styles.currentBadge}>
-            <Text style={styles.currentBadgeText}>Current</Text>
-          </View>
-        )}
+  const renderQueueItem = ({ item, index }) => {
+    const isFirst = index === 0;
+    
+    return (
+      <View style={[styles.queueItem, { backgroundColor: theme.card }]}>
+        <View style={[styles.queueNumberContainer, { backgroundColor: theme.primaryLight }]}>
+          <Text style={[styles.queueNumber, { color: theme.primary }]}>{item.queueNumber}</Text>
+          {isFirst && (
+            <View style={[styles.currentBadge, { backgroundColor: theme.primary }]}>
+              <Text style={styles.currentBadgeText}>Next</Text>
+            </View>
+          )}
+        </View>
+        
+        <View style={styles.customerInfo}>
+          <Text style={[styles.customerName, { color: theme.text }]}>
+            {item.userName || 'Anonymous'}
+          </Text>
+          {item.userEmail && (
+            <Text style={[styles.customerEmail, { color: theme.secondaryText }]}>{item.userEmail}</Text>
+          )}
+          {item.joinedAt && (
+            <Text style={[styles.joinedTime, { color: theme.secondaryText }]}>
+              Joined {formatTimestamp(item.joinedAt)}
+            </Text>
+          )}
+        </View>
+        
+        <View style={styles.actions}>
+          {isFirst ? (
+            <TouchableOpacity 
+              style={[styles.serveButton, { backgroundColor: theme.primary }]}
+              onPress={handleServeNext}
+            >
+              <Icon name="check" size={16} color="#fff" />
+              <Text style={styles.serveButtonText}>Serve</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={[styles.removeButton, { borderColor: theme.error }]}
+              onPress={() => handleRemoveFromQueue(item.id, item.userName)}
+            >
+              <Icon name="close" size={16} color={theme.error} />
+              <Text style={[styles.removeButtonText, { color: theme.error }]}>Remove</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
-      
-      <View style={styles.customerInfo}>
-        <Text style={styles.customerName}>{item.userName || 'Anonymous'}</Text>
-        <Text style={styles.customerEmail}>{item.userEmail || 'No email provided'}</Text>
-        <Text style={styles.joinedTime}>
-          Joined: {formatTimestamp(item.createdAt)}
-        </Text>
-      </View>
-      
-      <View style={styles.actions}>
-        {index === 0 ? (
-          <TouchableOpacity
-            style={styles.serveButton}
-            onPress={handleServeNext}
-          >
-            <Icon name="check-circle-outline" size={20} color="#fff" />
-            <Text style={styles.serveButtonText}>Serve</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.removeButton}
-            onPress={() => handleRemoveFromQueue(item.id, item.userName)}
-          >
-            <Icon name="close-circle-outline" size={20} color="#f44336" />
-            <Text style={styles.removeButtonText}>Remove</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
+    );
+  };
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'Unknown';
     
     try {
+      // Convert Firestore timestamp to JavaScript Date
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleString('en-US', { 
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
-    } catch (e) {
+      
+      // Format time as HH:MM AM/PM
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (error) {
+      console.error('Error formatting timestamp:', error);
       return 'Unknown';
     }
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#56409e" />
-        <Text style={styles.loadingText}>Loading queue data...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.primary }]}>Loading queue...</Text>
+      </View>
+    );
+  }
+
+  // Check if business is approved
+  if (businessData && businessData.approvalStatus !== 'approved') {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={[styles.header, { backgroundColor: theme.card }]}>
+          <View style={styles.approvalWarning}>
+            <Icon name="alert-circle-outline" size={40} color={theme.warning} />
+            <Text style={[styles.approvalWarningTitle, { color: theme.text }]}>
+              Business Not Approved
+            </Text>
+            <Text style={[styles.approvalWarningText, { color: theme.secondaryText }]}>
+              Your business is pending approval by an administrator.
+              You cannot manage queues until your business is approved.
+            </Text>
+          </View>
+        </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.card }]}>
         <View style={styles.queueStats}>
-          <Text style={styles.queueStatsText}>
-            <Text style={styles.queueStatsNumber}>{activeQueues.length}</Text> customers in queue
-          </Text>
-          {business && (
-            <TouchableOpacity
+          <View>
+            <Text style={[styles.queueStatsText, { color: theme.secondaryText }]}>Active Queues</Text>
+            <Text style={[styles.queueStatsNumber, { color: theme.primary }]}>{activeQueues.length}</Text>
+          </View>
+          
+          <TouchableOpacity 
+            style={[
+              styles.statusButton, 
+              { 
+                backgroundColor: businessData?.status === 'open' 
+                  ? `${theme.success}20` 
+                  : `${theme.error}20` 
+              }
+            ]}
+            onPress={toggleBusinessStatus}
+          >
+            <View 
               style={[
-                styles.statusButton,
-                { backgroundColor: business.status === 'open' ? '#e8f5e9' : '#ffebee' }
-              ]}
-              onPress={toggleBusinessStatus}
-            >
-              <View style={[
                 styles.statusIndicator, 
-                { backgroundColor: business.status === 'open' ? '#43A047' : '#F44336' }
-              ]} />
-              <Text style={[
-                styles.statusText,
-                { color: business.status === 'open' ? '#2E7D32' : '#C62828' }
-              ]}>
-                {business.status === 'open' ? 'Open' : 'Closed'}
-              </Text>
-            </TouchableOpacity>
-          )}
+                { 
+                  backgroundColor: businessData?.status === 'open' 
+                    ? theme.success 
+                    : theme.error 
+                }
+              ]} 
+            />
+            <Text 
+              style={[
+                styles.statusText, 
+                { 
+                  color: businessData?.status === 'open' 
+                    ? theme.success 
+                    : theme.error 
+                }
+              ]}
+            >
+              {businessData?.status === 'open' ? 'Open' : 'Closed'}
+            </Text>
+          </TouchableOpacity>
         </View>
         
         {activeQueues.length > 0 ? (
-          <TouchableOpacity
-            style={styles.serveNextButton}
+          <TouchableOpacity 
+            style={[styles.serveNextButton, { backgroundColor: theme.primary }]}
             onPress={handleServeNext}
           >
             <Icon name="account-check" size={20} color="#fff" style={styles.buttonIcon} />
@@ -250,7 +291,9 @@ const QueueManagement = ({ businessId }) => {
           </TouchableOpacity>
         ) : (
           <View style={styles.emptyQueueMessage}>
-            <Text style={styles.emptyQueueText}>No customers in queue</Text>
+            <Text style={[styles.emptyQueueText, { color: theme.secondaryText }]}>
+              No customers in queue
+            </Text>
           </View>
         )}
       </View>
@@ -261,10 +304,10 @@ const QueueManagement = ({ businessId }) => {
         renderItem={renderQueueItem}
         contentContainerStyle={styles.queueList}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Icon name="account-group" size={60} color="#d8dffe" />
-            <Text style={styles.emptyTitle}>Queue is Empty</Text>
-            <Text style={styles.emptyText}>
+          <View style={[styles.emptyContainer, { backgroundColor: theme.card }]}>
+            <Icon name="account-group" size={60} color={theme.secondaryText} />
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>Queue is Empty</Text>
+            <Text style={[styles.emptyText, { color: theme.secondaryText }]}>
               No customers are currently in your queue.
             </Text>
           </View>
@@ -285,11 +328,9 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#56409e',
     marginTop: 16,
   },
   header: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -303,12 +344,10 @@ const styles = StyleSheet.create({
   },
   queueStatsText: {
     fontSize: 16,
-    color: '#281b52',
   },
   queueStatsNumber: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#56409e',
   },
   statusButton: {
     flexDirection: 'row',
@@ -328,7 +367,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   serveNextButton: {
-    backgroundColor: '#56409e',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -348,14 +386,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyQueueText: {
-    color: '#9992a7',
     fontSize: 16,
   },
   queueList: {
     paddingBottom: 16,
   },
   queueItem: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -367,7 +403,6 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#f0eeff',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -375,13 +410,11 @@ const styles = StyleSheet.create({
   queueNumber: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#56409e',
   },
   currentBadge: {
     position: 'absolute',
     top: -5,
     right: -5,
-    backgroundColor: '#56409e',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
@@ -397,22 +430,18 @@ const styles = StyleSheet.create({
   customerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#281b52',
   },
   customerEmail: {
     fontSize: 14,
-    color: '#9992a7',
   },
   joinedTime: {
     fontSize: 12,
-    color: '#9992a7',
     marginTop: 4,
   },
   actions: {
     marginLeft: 8,
   },
   serveButton: {
-    backgroundColor: '#56409e',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -432,10 +461,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#f44336',
   },
   removeButtonText: {
-    color: '#f44336',
     fontSize: 14,
     fontWeight: '500',
     marginLeft: 4,
@@ -444,18 +471,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 30,
+    borderRadius: 16,
+    marginTop: 16,
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#281b52',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#9992a7',
     textAlign: 'center',
+  },
+  approvalWarning: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  approvalWarningTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  approvalWarningText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

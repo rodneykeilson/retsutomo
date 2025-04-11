@@ -159,7 +159,7 @@ export default function DashboardPage() {
         </View>
         <TouchableOpacity 
           style={[styles.profileButton, { backgroundColor: theme.card }]} 
-          onPress={() => navigation.navigate('ProfilePage')}
+          onPress={() => navigation.navigate('Profile')}
         >
           <Icon name="account" size={24} color={theme.primary} />
         </TouchableOpacity>

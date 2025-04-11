@@ -308,6 +308,127 @@ export default function ManageBusinessesPage({ navigation }) {
     return colors[hash % colors.length];
   };
 
+  const renderContent = () => {
+    if (!selectedBusiness) {
+      if (showCreateForm) {
+        // Show business registration form
+        return (
+          <View style={styles.registerContainer}>
+            <View style={[styles.formCard, { backgroundColor: theme.card }]}>
+              <Text style={[styles.formTitle, { color: theme.text }]}>Register New Business</Text>
+              
+              <Text style={[styles.label, { color: theme.text }]}>Business Name</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
+                placeholder="Enter business name"
+                placeholderTextColor={theme.placeholderText}
+                value={businessName}
+                onChangeText={setBusinessName}
+              />
+              
+              <Text style={[styles.label, { color: theme.text }]}>Business Description</Text>
+              <TextInput
+                style={[styles.input, styles.textArea, { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
+                placeholder="Enter business description"
+                placeholderTextColor={theme.placeholderText}
+                value={businessDescription}
+                onChangeText={setBusinessDescription}
+                multiline
+                numberOfLines={4}
+              />
+              
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+                <TouchableOpacity 
+                  style={[styles.cancelButton, { backgroundColor: theme.background }]}
+                  onPress={() => setShowCreateForm(false)}
+                >
+                  <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.registerButton, { backgroundColor: theme.primary }]}
+                  onPress={handleRegisterBusiness}
+                  disabled={creatingBusiness}
+                >
+                  {creatingBusiness ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Icon name="store-plus" size={20} color="#fff" style={styles.buttonIcon} />
+                      <Text style={styles.registerButtonText}>Register Business</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.orDivider}>
+                <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+                <Text style={[styles.orText, { color: theme.secondaryText }]}>or</Text>
+                <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+              </View>
+              
+              <TouchableOpacity 
+                style={[styles.sampleButton, { backgroundColor: theme.primaryLight, borderColor: theme.border }]}
+                onPress={handleCreateSampleBusiness}
+                disabled={creatingBusiness}
+              >
+                <Icon name="magic" size={20} color={theme.primary} style={styles.buttonIcon} />
+                <Text style={[styles.sampleButtonText, { color: theme.primary }]}>Create Sample Business</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+      }
+      
+      // Show empty state
+      return (
+        <View style={styles.emptyStateContainer}>
+          <Icon name="store-off" size={80} color={theme.secondaryText} />
+          <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No Business Selected</Text>
+          <Text style={[styles.emptyStateText, { color: theme.secondaryText }]}>
+            Select a business from the list above or create a new one to get started.
+          </Text>
+          <TouchableOpacity 
+            style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
+            onPress={() => setShowCreateForm(true)}
+          >
+            <Icon name="store-plus" size={20} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.emptyStateButtonText}>Create New Business</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Check if business is pending approval
+    if (selectedBusiness.approvalStatus === 'pending') {
+      return (
+        <View style={styles.approvalRequiredContainer}>
+          <Icon name="clock-outline" size={80} color={theme.warning} />
+          <Text style={[styles.approvalRequiredTitle, { color: theme.text }]}>Approval Pending</Text>
+          <Text style={[styles.approvalRequiredText, { color: theme.secondaryText }]}>
+            Your business is pending approval by an administrator.
+            You can still edit your business details, but you cannot manage queues until your business is approved.
+          </Text>
+        </View>
+      );
+    }
+    
+    // Show selected tab content
+    switch (activeTab) {
+      case 'queue':
+        return <QueueManagement business={selectedBusiness} />;
+      case 'details':
+        return (
+          <BusinessDetailsForm 
+            business={selectedBusiness} 
+            onUpdate={handleBusinessUpdate} 
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
@@ -339,11 +460,21 @@ export default function ManageBusinessesPage({ navigation }) {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.businessListContent}
         >
-          {businesses.map(business => renderBusinessItem({ item: business }))}
+          {businesses.map(business => (
+            <React.Fragment key={business.id}>
+              {renderBusinessItem({ item: business })}
+            </React.Fragment>
+          ))}
           
           <TouchableOpacity 
             style={[styles.addBusinessButton, { backgroundColor: theme.card }]}
-            onPress={() => setShowCreateForm(true)}
+            onPress={() => {
+              setShowCreateForm(true);
+              setSelectedBusiness(null);
+              setSelectedBusinessId(null);
+              setBusinessName('');
+              setBusinessDescription('');
+            }}
           >
             <Icon name="plus" size={24} color={theme.primary} />
           </TouchableOpacity>
@@ -402,108 +533,12 @@ export default function ManageBusinessesPage({ navigation }) {
           </View>
           
           <View style={styles.content}>
-            {activeTab === 'queue' ? (
-              selectedBusiness.approvalStatus === 'approved' ? (
-                <QueueManagement business={selectedBusiness} />
-              ) : (
-                <View style={[styles.approvalRequiredContainer, { backgroundColor: theme.card }]}>
-                  <Icon name="clock-alert-outline" size={60} color={theme.warning} />
-                  <Text style={[styles.approvalRequiredTitle, { color: theme.text }]}>
-                    Approval Required
-                  </Text>
-                  <Text style={[styles.approvalRequiredText, { color: theme.secondaryText }]}>
-                    Your business is {selectedBusiness.approvalStatus === 'rejected' ? 'rejected' : 'pending approval'}. 
-                    {selectedBusiness.approvalStatus === 'pending' ? 
-                      'You cannot manage queues until an administrator approves your business.' :
-                      'Please update your business details and contact support for assistance.'}
-                  </Text>
-                </View>
-              )
-            ) : (
-              <BusinessDetailsForm 
-                business={selectedBusiness} 
-                businessId={selectedBusinessId} 
-                onUpdate={handleBusinessUpdate}
-              />
-            )}
+            {renderContent()}
           </View>
         </>
       ) : (
         <View style={styles.content}>
-          {showCreateForm ? (
-            <View style={styles.registerContainer}>
-              <View style={[styles.formCard, { backgroundColor: theme.card }]}>
-                <Text style={[styles.formTitle, { color: theme.text }]}>Register New Business</Text>
-                
-                <Text style={[styles.label, { color: theme.text }]}>Business Name</Text>
-                <TextInput 
-                  style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-                  placeholder="Enter business name"
-                  placeholderTextColor={theme.secondaryText}
-                  value={businessName}
-                  onChangeText={setBusinessName}
-                />
-                
-                <Text style={[styles.label, { color: theme.text }]}>Description</Text>
-                <TextInput 
-                  style={[styles.input, styles.textArea, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-                  placeholder="Describe your business"
-                  placeholderTextColor={theme.secondaryText}
-                  value={businessDescription}
-                  onChangeText={setBusinessDescription}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-                
-                <TouchableOpacity 
-                  style={[styles.registerButton, { backgroundColor: theme.primary }]}
-                  onPress={handleRegisterBusiness}
-                  disabled={creatingBusiness}
-                >
-                  {creatingBusiness ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <>
-                      <Icon name="store-plus" size={20} color="#fff" style={styles.buttonIcon} />
-                      <Text style={styles.registerButtonText}>Register Business</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-                
-                <View style={styles.orDivider}>
-                  <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-                  <Text style={[styles.orText, { color: theme.secondaryText }]}>or</Text>
-                  <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-                </View>
-                
-                <TouchableOpacity 
-                  style={[styles.sampleButton, { backgroundColor: theme.primaryLight, borderColor: theme.border }]}
-                  onPress={handleCreateSampleBusiness}
-                  disabled={creatingBusiness}
-                >
-                  <Icon name="flash" size={20} color={theme.primary} style={styles.buttonIcon} />
-                  <Text style={[styles.sampleButtonText, { color: theme.primary }]}>Create Sample Business</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <View style={[styles.emptyStateContainer, { backgroundColor: theme.card }]}>
-              <Icon name="store-outline" size={60} color={theme.secondaryText} />
-              <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
-                No Business Selected
-              </Text>
-              <Text style={[styles.emptyStateText, { color: theme.secondaryText }]}>
-                Select a business from the list above or create a new one
-              </Text>
-              <TouchableOpacity 
-                style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
-                onPress={() => setShowCreateForm(true)}
-              >
-                <Text style={styles.emptyStateButtonText}>Create New Business</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          {renderContent()}
         </View>
       )}
     </SafeAreaView>
@@ -788,5 +823,16 @@ const styles = StyleSheet.create({
     color: '#9992a7',
     marginBottom: 16,
     textAlign: 'center',
+  },
+  cancelButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderColor: '#e0e0e0',
+    borderWidth: 1,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

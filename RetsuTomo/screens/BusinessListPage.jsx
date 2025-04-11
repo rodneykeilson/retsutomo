@@ -10,12 +10,14 @@ import {
     ActivityIndicator,
     Alert,
     StatusBar,
+    RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { firestore } from '../services/firebase';
 import { useTheme } from '../theme/ThemeContext';
+import sampleDataService from '../services/sampleData';
 
 export default function BusinessListPage() {
     const navigation = useNavigation();
@@ -27,45 +29,52 @@ export default function BusinessListPage() {
     const [categories, setCategories] = useState(['All']);
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
-        const fetchBusinesses = async () => {
-            try {
-                setLoading(true);
-                
-                // Check if we need to populate sample data
-                const snapshot = await firestore.collection('businesses').limit(1).get();
-                if (snapshot.empty) {
-                    await sampleDataService.populateSampleData();
-                }
-                
-                // Fetch businesses - only show approved businesses
-                const businessSnapshot = await firestore
-                    .collection('businesses')
-                    .where('approvalStatus', '==', 'approved')
-                    .get();
-                
-                const businessData = businessSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                }));
-                
-                // Extract unique categories
-                const uniqueCategories = ['All', ...new Set(businessData.map(business => business.category).filter(Boolean))];
-                
-                setBusinesses(businessData);
-                setFilteredBusinesses(businessData);
-                setCategories(uniqueCategories);
-            } catch (error) {
-                console.error('Error fetching businesses:', error);
-                Alert.alert('Error', error.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchBusinesses();
     }, []);
+
+    const fetchBusinesses = async () => {
+        try {
+            setLoading(true);
+            
+            // Check if we need to populate sample data
+            const snapshot = await firestore.collection('businesses').limit(1).get();
+            if (snapshot.empty) {
+                await sampleDataService.populateSampleData();
+            }
+            
+            // Fetch businesses - only show approved businesses
+            const businessSnapshot = await firestore
+                .collection('businesses')
+                .where('approvalStatus', '==', 'approved')
+                .get();
+            
+            const businessData = businessSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+            
+            // Extract unique categories
+            const uniqueCategories = ['All', ...new Set(businessData.map(business => business.category).filter(Boolean))];
+            
+            setBusinesses(businessData);
+            setFilteredBusinesses(businessData);
+            setCategories(uniqueCategories);
+        } catch (error) {
+            console.error('Error fetching businesses:', error);
+            Alert.alert('Error', error.message);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchBusinesses();
+    };
 
     const handleSearch = (query) => {
         setSearchQuery(query);
@@ -113,24 +122,16 @@ export default function BusinessListPage() {
         <TouchableOpacity
             style={[
                 styles.categoryItem,
-                selectedCategory === item && styles.selectedCategoryItem,
-                { 
-                    backgroundColor: selectedCategory === item 
-                        ? theme.primary 
-                        : theme.isDarkMode ? theme.card : '#f0eeff'
-                }
+                { backgroundColor: theme.card },
+                selectedCategory === item && [styles.selectedCategoryItem, { backgroundColor: theme.primaryLight }]
             ]}
             onPress={() => handleCategorySelect(item)}
         >
             <Text 
                 style={[
-                    styles.categoryText,
-                    selectedCategory === item && styles.selectedCategoryText,
-                    { 
-                        color: selectedCategory === item 
-                            ? '#fff' 
-                            : theme.primary
-                    }
+                    styles.categoryText, 
+                    { color: theme.secondaryText },
+                    selectedCategory === item && [styles.selectedCategoryText, { color: theme.primary }]
                 ]}
             >
                 {item}
@@ -138,84 +139,89 @@ export default function BusinessListPage() {
         </TouchableOpacity>
     );
     
-    const renderBusinessItem = ({ item }) => (
-        <TouchableOpacity 
-            style={[styles.businessCard, { backgroundColor: theme.card }]}
-            onPress={() => navigation.navigate('QueuePage', { businessId: item.id })}
-        >
-            <View style={styles.businessHeader}>
-                <View style={[styles.businessIconContainer, { backgroundColor: theme.primaryLight }]}>
-                    <Icon name="store" size={24} color={theme.primary} />
-                </View>
-                <View style={styles.businessInfo}>
-                    <Text style={[styles.businessName, { color: theme.text }]}>{item.name}</Text>
-                    <View style={styles.businessMeta}>
-                        <View style={styles.categoryBadge}>
-                            <Text style={styles.categoryBadgeText}>{item.category || 'General'}</Text>
+    const renderBusinessItem = ({ item }) => {
+        const firstLetter = item.name ? item.name.charAt(0).toUpperCase() : '?';
+        const randomColor = getRandomColor(item.id);
+        
+        return (
+            <TouchableOpacity 
+                style={[styles.businessCard, { backgroundColor: theme.card }]}
+                onPress={() => navigation.navigate('QueuePage', { businessId: item.id })}
+            >
+                <View style={styles.businessHeader}>
+                    <View style={[styles.businessIconContainer, { backgroundColor: randomColor }]}>
+                        <Text style={styles.businessIconText}>{firstLetter}</Text>
+                    </View>
+                    <View style={styles.businessInfo}>
+                        <Text style={[styles.businessName, { color: theme.text }]}>{item.name}</Text>
+                        <View style={styles.businessMeta}>
+                            {item.category && (
+                                <View style={[styles.categoryBadge, { backgroundColor: theme.primaryLight }]}>
+                                    <Text style={[styles.categoryBadgeText, { color: theme.primary }]}>{item.category}</Text>
+                                </View>
+                            )}
+                            <Text style={[styles.businessStatus, { color: item.status === 'open' ? theme.success : theme.error }]}>
+                                {item.status === 'open' ? 'Open' : 'Closed'}
+                            </Text>
                         </View>
-                        <Text style={[styles.businessStatus, { color: item.status === 'open' ? theme.success : theme.error }]}>
-                            {item.status === 'open' ? 'Open' : 'Closed'}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-            
-            {item.description && (
-                <Text style={[styles.businessDescription, { color: theme.secondaryText }]}>
-                    {item.description}
-                </Text>
-            )}
-            
-            <View style={styles.businessFooter}>
-                <View style={styles.businessStats}>
-                    <View style={styles.statItem}>
-                        <Icon name="account-multiple" size={16} color={theme.secondaryText} />
-                        <Text style={[styles.statText, { color: theme.secondaryText }]}>
-                            {item.currentQueueLength || 0} in queue
-                        </Text>
-                    </View>
-                    <View style={styles.statItem}>
-                        <Icon name="clock-outline" size={16} color={theme.secondaryText} />
-                        <Text style={[styles.statText, { color: theme.secondaryText }]}>
-                            ~{item.estimatedWaitTime || 0} min wait
-                        </Text>
                     </View>
                 </View>
                 
-                <TouchableOpacity 
-                    style={[styles.queueButton, { backgroundColor: theme.primary }]}
-                    onPress={() => navigation.navigate('QueuePage', { businessId: item.id })}
-                >
-                    <Text style={styles.queueButtonText}>Join Queue</Text>
-                </TouchableOpacity>
-            </View>
-        </TouchableOpacity>
-    );
-    
-    if (loading) {
-        return (
-            <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]} edges={['top', 'right', 'left', 'bottom']}>
-                <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
-                <ActivityIndicator size="large" color={theme.primary} />
-            </SafeAreaView>
+                {item.description && (
+                    <Text style={[styles.businessDescription, { color: theme.secondaryText }]} numberOfLines={2}>
+                        {item.description}
+                    </Text>
+                )}
+                
+                <View style={styles.businessFooter}>
+                    <View style={styles.businessStats}>
+                        <View style={styles.statItem}>
+                            <Icon name="clock-outline" size={16} color={theme.secondaryText} />
+                            <Text style={[styles.statText, { color: theme.secondaryText }]}>
+                                ~{item.estimatedTimePerCustomer || 15} min
+                            </Text>
+                        </View>
+                        <View style={styles.statItem}>
+                            <Icon name="account-outline" size={16} color={theme.secondaryText} />
+                            <Text style={[styles.statText, { color: theme.secondaryText }]}>
+                                {item.currentQueueSize || 0} in queue
+                            </Text>
+                        </View>
+                    </View>
+                    
+                    <TouchableOpacity 
+                        style={[styles.queueButton, { backgroundColor: item.status === 'open' ? theme.primary : theme.border }]}
+                        onPress={() => navigation.navigate('QueuePage', { businessId: item.id })}
+                        disabled={item.status !== 'open'}
+                    >
+                        <Text style={styles.queueButtonText}>
+                            {item.status === 'open' ? 'Join Queue' : 'Closed'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </TouchableOpacity>
         );
-    }
+    };
     
+    // Generate a consistent color based on business ID
+    const getRandomColor = (id) => {
+        const colors = ['#FF6B6B', '#4ECDC4', '#FFD166', '#6B5CA5', '#61C0BF', '#FF9A76', '#A5DEE5'];
+        const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return colors[hash % colors.length];
+    };
+
     return (
-        <SafeAreaView 
-            style={[styles.container, { backgroundColor: theme.background }]} 
-            edges={['top', 'right', 'left', 'bottom']}
-        >
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
             <StatusBar backgroundColor={theme.background} barStyle={theme.statusBar} />
             
             <View style={styles.header}>
                 <TouchableOpacity 
-                    style={[styles.backButton, { backgroundColor: theme.card }]} 
+                    style={[styles.backButton, { backgroundColor: theme.card }]}
                     onPress={() => navigation.goBack()}
                 >
                     <Icon name="arrow-left" size={24} color={theme.text} />
                 </TouchableOpacity>
-                <Text style={[styles.title, { color: theme.text }]}>Find Businesses</Text>
+                <Text style={[styles.title, { color: theme.text }]}>Businesses</Text>
                 <View style={styles.placeholder} />
             </View>
             
@@ -223,16 +229,11 @@ export default function BusinessListPage() {
                 <Icon name="magnify" size={24} color={theme.secondaryText} style={styles.searchIcon} />
                 <TextInput
                     style={[styles.searchInput, { color: theme.text }]}
-                    placeholder="Search businesses..."
+                    placeholder="Search businesses"
                     placeholderTextColor={theme.secondaryText}
                     value={searchQuery}
                     onChangeText={handleSearch}
                 />
-                {searchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => handleSearch('')}>
-                        <Icon name="close" size={20} color={theme.secondaryText} />
-                    </TouchableOpacity>
-                )}
             </View>
             
             <View style={styles.categoriesContainer}>
@@ -246,10 +247,16 @@ export default function BusinessListPage() {
                 />
             </View>
             
-            {filteredBusinesses.length === 0 ? (
-                <View style={[styles.emptyContainer, { paddingBottom: insets.bottom }]}>
-                    <Icon name="store-search" size={64} color={theme.secondaryText} />
-                    <Text style={[styles.emptyTitle, { color: theme.text }]}>No businesses found</Text>
+            {loading && !refreshing ? (
+                <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+                    <ActivityIndicator size="large" color={theme.primary} />
+                </View>
+            ) : filteredBusinesses.length === 0 ? (
+                <View style={[styles.emptyContainer, { backgroundColor: theme.background }]}>
+                    <Icon name="store-search-outline" size={60} color={theme.secondaryText} />
+                    <Text style={[styles.emptyTitle, { color: theme.text }]}>
+                        No businesses found
+                    </Text>
                     <Text style={[styles.emptyDescription, { color: theme.secondaryText }]}>
                         Try a different search term or category
                     </Text>
@@ -261,6 +268,14 @@ export default function BusinessListPage() {
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={[styles.businessList, { paddingBottom: insets.bottom + 16 }]}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={[theme.primary]}
+                            tintColor={theme.primary}
+                        />
+                    }
                 />
             )}
         </SafeAreaView>
@@ -357,6 +372,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginRight: 12,
     },
+    businessIconText: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#fff',
+    },
     businessInfo: {
         flex: 1,
     },
@@ -370,7 +390,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     categoryBadge: {
-        backgroundColor: '#f0eeff',
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 12,
@@ -378,7 +397,6 @@ const styles = StyleSheet.create({
     },
     categoryBadgeText: {
         fontSize: 12,
-        color: '#56409e',
         fontWeight: '500',
     },
     businessStatus: {
