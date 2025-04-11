@@ -104,13 +104,19 @@ export default function ManageBusinessesPage({ navigation }) {
         return;
       }
 
+      // Get user profile data for owner name
+      const userDoc = await firestore.collection('users').doc(user.uid).get();
+      const userData = userDoc.exists ? userDoc.data() : {};
+
       // Add the business to the `businesses` collection
       const businessData = {
         name: businessName.trim(),
         description: businessDescription.trim(),
         ownerId: user.uid,
+        ownerName: userData.displayName || 'Unknown',
         category: 'Other',
-        status: 'open',
+        status: 'closed', // Business starts as closed until approved
+        approvalStatus: 'pending', // New field for approval workflow
         estimatedTimePerCustomer: 15,
         maxQueueSize: 20,
         createdAt: new Date(),
@@ -124,12 +130,17 @@ export default function ManageBusinessesPage({ navigation }) {
         ...businessData
       };
       
-      setBusinesses(prevBusinesses => [...prevBusinesses, newBusiness]);
+      setBusinesses(prevBusinesses => [newBusiness, ...prevBusinesses]);
       setSelectedBusiness(newBusiness);
-      setSelectedBusinessId(businessRef.id);
+      setSelectedBusinessId(newBusiness.id);
+      setBusinessName('');
+      setBusinessDescription('');
       setShowCreateForm(false);
       
-      Alert.alert('Success', 'Business registered successfully!');
+      Alert.alert(
+        'Business Registered', 
+        'Your business has been registered and is pending approval by an administrator.'
+      );
     } catch (error) {
       console.error('Error registering business:', error);
       Alert.alert('Error', error.message);
@@ -238,54 +249,57 @@ export default function ManageBusinessesPage({ navigation }) {
     );
   };
 
-  const renderBusinessItem = ({ item }) => (
-    <TouchableOpacity
-      style={[
-        styles.businessItem,
-        { backgroundColor: theme.card },
-        selectedBusinessId === item.id && [
-          styles.selectedBusinessItem, 
-          { 
-            backgroundColor: theme.primaryLight,
-            borderColor: theme.primary 
-          }
-        ]
-      ]}
-      onPress={() => handleSelectBusiness(item)}
-    >
-      <View style={styles.businessItemContent}>
-        <View style={[
-          styles.businessIcon, 
-          { backgroundColor: getRandomColor(item.id) }
-        ]}>
-          <Text style={styles.businessIconText}>
-            {item.name.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View style={styles.businessItemInfo}>
-          <Text style={[styles.businessItemName, { color: theme.text }]}>{item.name}</Text>
-          <View style={styles.businessStatusContainer}>
-            <View style={[
-              styles.statusIndicator, 
-              { backgroundColor: item.status === 'open' ? '#43A047' : '#F44336' }
-            ]} />
-            <Text style={[styles.businessStatusText, { color: theme.secondaryText }]}>
-              {item.status === 'open' ? 'Open' : 'Closed'}
-            </Text>
+  const renderBusinessItem = ({ item }) => {
+    const firstLetter = item.name ? item.name.charAt(0).toUpperCase() : '?';
+    const randomColor = getRandomColor(item.id);
+    const isSelected = selectedBusinessId === item.id;
+    
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.businessItem, 
+          isSelected && styles.selectedBusinessItem,
+          { backgroundColor: theme.card }
+        ]}
+        onPress={() => handleSelectBusiness(item)}
+      >
+        <View style={styles.businessItemContent}>
+          <View style={[styles.businessIcon, { backgroundColor: randomColor }]}>
+            <Text style={styles.businessIconText}>{firstLetter}</Text>
+          </View>
+          <View style={styles.businessItemInfo}>
+            <Text style={[styles.businessItemName, { color: theme.text }]}>{item.name}</Text>
+            <View style={styles.businessStatusContainer}>
+              <View 
+                style={[
+                  styles.statusIndicator, 
+                  { 
+                    backgroundColor: 
+                      item.approvalStatus === 'approved' ? theme.success :
+                      item.approvalStatus === 'rejected' ? theme.error :
+                      theme.warning 
+                  }
+                ]} 
+              />
+              <Text style={[styles.businessStatusText, { color: theme.secondaryText }]}>
+                {item.approvalStatus === 'approved' ? 'Approved' :
+                 item.approvalStatus === 'rejected' ? 'Rejected' :
+                 'Pending Approval'}
+              </Text>
+            </View>
           </View>
         </View>
-      </View>
-      
-      {selectedBusinessId === item.id && (
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => handleDeleteBusiness(item.id)}
-        >
-          <Icon name="delete-outline" size={20} color="#F44336" />
-        </TouchableOpacity>
-      )}
-    </TouchableOpacity>
-  );
+        {isSelected && (
+          <TouchableOpacity 
+            style={styles.deleteButton}
+            onPress={() => handleDeleteBusiness(item.id)}
+          >
+            <Icon name="delete-outline" size={20} color={theme.error} />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   // Generate a consistent color based on business ID
   const getRandomColor = (id) => {

@@ -18,6 +18,7 @@ import ProfilePage from './screens/ProfilePage';
 import BusinessListPage from './screens/BusinessListPage';
 import QueuePage from './screens/QueuePage';
 import MyQueuesPage from './screens/MyQueuesPage';
+import AdminDashboardPage from './screens/AdminDashboardPage';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -69,6 +70,8 @@ function MainTabs() {
             iconName = focused ? 'ticket' : 'ticket-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'account' : 'account-outline';
+          } else if (route.name === 'AdminDashboard') {
+            iconName = focused ? 'crown' : 'crown-outline';
           }
 
           return <Icon name={iconName} size={24} color={color} />;
@@ -87,6 +90,11 @@ function MainTabs() {
         options={{ title: 'My Queues' }}
       />
       <Tab.Screen name="Profile" component={ProfilePage} />
+      <Tab.Screen 
+        name="AdminDashboard" 
+        component={AdminDashboardPage}
+        options={{ title: 'Admin Dashboard' }}
+      />
     </Tab.Navigator>
   );
 }
@@ -131,6 +139,7 @@ function AppContent() {
           <Stack.Screen name="QueuePage" component={QueuePage} />
           <Stack.Screen name="MyQueuesPage" component={MyQueuesPage} />
           <Stack.Screen name="BusinessListPage" component={BusinessListPage} />
+          <Stack.Screen name="AdminDashboardPage" component={AdminDashboardPage} />
         </Stack.Navigator>
       </NavigationContainer>
     </>

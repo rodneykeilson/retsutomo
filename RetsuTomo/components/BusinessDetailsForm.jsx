@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { firestore } from '../services/firebase';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useTheme } from '../theme/ThemeContext';
 
 const CATEGORIES = [
   'Food & Beverage',
@@ -24,6 +25,7 @@ const CATEGORIES = [
 ];
 
 const BusinessDetailsForm = ({ business, businessId, onUpdate }) => {
+  const { theme } = useTheme();
   const [name, setName] = useState(business?.name || '');
   const [description, setDescription] = useState(business?.description || '');
   const [category, setCategory] = useState(business?.category || 'Other');
@@ -79,53 +81,94 @@ const BusinessDetailsForm = ({ business, businessId, onUpdate }) => {
     }
   };
 
+  // Get approval status badge color
+  const getApprovalStatusColor = (status) => {
+    switch(status) {
+      case 'approved':
+        return theme.success;
+      case 'rejected':
+        return theme.error;
+      default:
+        return theme.warning;
+    }
+  };
+
+  // Get approval status text
+  const getApprovalStatusText = (status) => {
+    switch(status) {
+      case 'approved':
+        return 'Approved';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return 'Pending Approval';
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.formSection}>
-        <Text style={styles.sectionTitle}>Basic Information</Text>
+      {/* Approval Status Banner */}
+      {business?.approvalStatus && (
+        <View style={[styles.approvalBanner, { backgroundColor: getApprovalStatusColor(business.approvalStatus) + '20' }]}>
+          <Icon 
+            name={business.approvalStatus === 'approved' ? 'check-circle' : 
+                 business.approvalStatus === 'rejected' ? 'close-circle' : 'clock-outline'} 
+            size={20} 
+            color={getApprovalStatusColor(business.approvalStatus)} 
+          />
+          <Text style={[styles.approvalText, { color: getApprovalStatusColor(business.approvalStatus) }]}>
+            {getApprovalStatusText(business.approvalStatus)}
+            {business.approvalStatus === 'pending' && ' - Your business is awaiting admin review'}
+            {business.approvalStatus === 'rejected' && ' - Please update your information and contact support'}
+          </Text>
+        </View>
+      )}
+
+      <View style={[styles.formSection, { backgroundColor: theme.card }]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Basic Information</Text>
         
-        <Text style={styles.label}>Business Name</Text>
+        <Text style={[styles.label, { color: theme.text }]}>Business Name</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
           value={name}
           onChangeText={setName}
           placeholder="Enter business name"
-          placeholderTextColor="#9992a7"
+          placeholderTextColor={theme.secondaryText}
         />
         
-        <Text style={styles.label}>Description</Text>
+        <Text style={[styles.label, { color: theme.text }]}>Description</Text>
         <TextInput
-          style={[styles.input, styles.textArea]}
+          style={[styles.input, styles.textArea, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
           value={description}
           onChangeText={setDescription}
           placeholder="Describe your business"
-          placeholderTextColor="#9992a7"
+          placeholderTextColor={theme.secondaryText}
           multiline
           numberOfLines={4}
           textAlignVertical="top"
         />
         
-        <Text style={styles.label}>Category</Text>
+        <Text style={[styles.label, { color: theme.text }]}>Category</Text>
         <TouchableOpacity
-          style={styles.dropdownButton}
+          style={[styles.dropdownButton, { backgroundColor: theme.background, borderColor: theme.border }]}
           onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
         >
-          <Text style={styles.dropdownButtonText}>{category}</Text>
+          <Text style={[styles.dropdownButtonText, { color: theme.text }]}>{category}</Text>
           <Icon 
             name={showCategoryDropdown ? "chevron-up" : "chevron-down"} 
             size={20} 
-            color="#9992a7" 
+            color={theme.secondaryText} 
           />
         </TouchableOpacity>
         
         {showCategoryDropdown && (
-          <View style={styles.dropdownList}>
+          <View style={[styles.dropdownList, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {CATEGORIES.map((item) => (
               <TouchableOpacity
                 key={item}
                 style={[
                   styles.dropdownItem,
-                  category === item && styles.dropdownItemSelected
+                  category === item && [styles.dropdownItemSelected, { backgroundColor: theme.primaryLight }]
                 ]}
                 onPress={() => {
                   setCategory(item);
@@ -135,7 +178,8 @@ const BusinessDetailsForm = ({ business, businessId, onUpdate }) => {
                 <Text 
                   style={[
                     styles.dropdownItemText,
-                    category === item && styles.dropdownItemTextSelected
+                    { color: theme.text },
+                    category === item && [styles.dropdownItemTextSelected, { color: theme.primary }]
                   ]}
                 >
                   {item}
@@ -145,44 +189,44 @@ const BusinessDetailsForm = ({ business, businessId, onUpdate }) => {
           </View>
         )}
         
-        <Text style={styles.label}>Address</Text>
+        <Text style={[styles.label, { color: theme.text }]}>Address</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
           value={address}
           onChangeText={setAddress}
           placeholder="Enter business address"
-          placeholderTextColor="#9992a7"
+          placeholderTextColor={theme.secondaryText}
         />
       </View>
       
-      <View style={styles.formSection}>
-        <Text style={styles.sectionTitle}>Queue Settings</Text>
+      <View style={[styles.formSection, { backgroundColor: theme.card }]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Queue Settings</Text>
         
-        <Text style={styles.label}>Estimated Time Per Customer (minutes)</Text>
+        <Text style={[styles.label, { color: theme.text }]}>Estimated Time Per Customer (minutes)</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
           value={estimatedTimePerCustomer}
           onChangeText={setEstimatedTimePerCustomer}
           placeholder="15"
-          placeholderTextColor="#9992a7"
+          placeholderTextColor={theme.secondaryText}
           keyboardType="numeric"
         />
         
-        <Text style={styles.label}>Maximum Queue Size</Text>
+        <Text style={[styles.label, { color: theme.text }]}>Maximum Queue Size</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
           value={maxQueueSize}
           onChangeText={setMaxQueueSize}
           placeholder="20"
-          placeholderTextColor="#9992a7"
+          placeholderTextColor={theme.secondaryText}
           keyboardType="numeric"
         />
       </View>
       
       <TouchableOpacity
-        style={styles.saveButton}
+        style={[styles.saveButton, { backgroundColor: theme.primary }]}
         onPress={handleSave}
-        disabled={loading}
+        disabled={loading || business?.approvalStatus === 'rejected'}
       >
         {loading ? (
           <ActivityIndicator size="small" color="#fff" />
@@ -193,6 +237,12 @@ const BusinessDetailsForm = ({ business, businessId, onUpdate }) => {
           </>
         )}
       </TouchableOpacity>
+
+      {business?.approvalStatus === 'rejected' && (
+        <Text style={[styles.rejectedNote, { color: theme.error }]}>
+          You cannot edit a rejected business. Please contact support for assistance.
+        </Text>
+      )}
     </ScrollView>
   );
 };
@@ -201,8 +251,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  approvalBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  approvalText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '500',
+  },
   formSection: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -211,31 +272,25 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#281b52',
     marginBottom: 16,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#281b52',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#f5f5f5',
     borderRadius: 12,
     padding: 12,
     fontSize: 16,
-    color: '#281b52',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   textArea: {
     height: 100,
     textAlignVertical: 'top',
   },
   dropdownButton: {
-    backgroundColor: '#f5f5f5',
     borderRadius: 12,
     padding: 12,
     flexDirection: 'row',
@@ -243,18 +298,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   dropdownButtonText: {
     fontSize: 16,
-    color: '#281b52',
   },
   dropdownList: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
     elevation: 2,
   },
   dropdownItem: {
@@ -267,14 +318,11 @@ const styles = StyleSheet.create({
   },
   dropdownItemText: {
     fontSize: 16,
-    color: '#281b52',
   },
   dropdownItemTextSelected: {
-    color: '#56409e',
     fontWeight: '500',
   },
   saveButton: {
-    backgroundColor: '#56409e',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -289,6 +337,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
+  },
+  rejectedNote: {
+    textAlign: 'center',
+    marginBottom: 24,
+    fontStyle: 'italic',
   },
 });
 

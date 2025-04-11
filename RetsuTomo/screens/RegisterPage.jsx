@@ -45,10 +45,16 @@ export default function RegisterPage() {
             // Create user with email and password
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
             
+            // Set user display name
+            await userCredential.user.updateProfile({
+                displayName: name
+            });
+            
             // Save additional user data to Firestore
-            await firestore.collection('profiles').doc(userCredential.user.uid).set({
-                name,
+            await firestore.collection('users').doc(userCredential.user.uid).set({
+                displayName: name,
                 email,
+                role: 'user', // Default role is 'user'
                 createdAt: new Date(),
             });
             

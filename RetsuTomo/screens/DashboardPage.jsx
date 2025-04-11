@@ -42,7 +42,14 @@ export default function DashboardPage() {
       // Fetch user data
       const userDoc = await firestore.collection('users').doc(user.uid).get();
       if (userDoc.exists) {
-        setUserData(userDoc.data());
+        const userData = userDoc.data();
+        setUserData(userData);
+        
+        // Check if user is an admin and redirect if needed
+        if (userData.role === 'admin') {
+          navigation.replace('AdminDashboardPage');
+          return;
+        }
       }
 
       // Fetch recent businesses
