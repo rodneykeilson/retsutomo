@@ -31,7 +31,7 @@ const QueueManagement = ({ business }) => {
       .collection('businesses')
       .doc(businessId)
       .collection('queues')
-      .where('status', '==', 'active')
+      .where('status', 'in', ['active', 'waiting', 'current'])
       .orderBy('queueNumber', 'asc')
       .onSnapshot(
         (snapshot) => {
@@ -59,6 +59,7 @@ const QueueManagement = ({ business }) => {
 
     try {
       const nextCustomer = activeQueues[0];
+      const finishedAt = firebase.firestore.FieldValue.serverTimestamp();
       
       // Update the queue status to finished
       await firestore
@@ -68,8 +69,55 @@ const QueueManagement = ({ business }) => {
         .doc(nextCustomer.id)
         .update({
           status: 'finished',
-          finishedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          finishedAt: finishedAt,
         });
+
+      // Remove from user's active queues
+      if (nextCustomer.userId) {
+        try {
+          // First check if the user has this queue in their active queues
+          const userActiveQueueRef = await firestore
+            .collection('users')
+            .doc(nextCustomer.userId)
+            .collection('activeQueues')
+            .where('businessId', '==', businessId)
+            .where('queueNumber', '==', nextCustomer.queueNumber)
+            .get();
+          
+          // Delete from active queues
+          if (!userActiveQueueRef.empty) {
+            await firestore
+              .collection('users')
+              .doc(nextCustomer.userId)
+              .collection('activeQueues')
+              .doc(userActiveQueueRef.docs[0].id)
+              .delete();
+          }
+          
+          // Get user data to ensure we have the correct display name
+          const userDoc = await firestore.collection('users').doc(nextCustomer.userId).get();
+          const userData = userDoc.exists ? userDoc.data() : {};
+          const userName = userData.displayName || nextCustomer.userName || 'Anonymous';
+          
+          // Add to user's queue history
+          await firestore
+            .collection('users')
+            .doc(nextCustomer.userId)
+            .collection('queueHistory')
+            .add({
+              businessId: businessId,
+              businessName: businessData.name,
+              queueNumber: nextCustomer.queueNumber,
+              joinedAt: nextCustomer.joinedAt,
+              finishedAt: finishedAt,
+              status: 'completed',
+              userName: userName
+            });
+        } catch (userError) {
+          console.error('Error updating user queue records:', userError);
+          // Continue with the process even if updating user records fails
+        }
+      }
 
       Alert.alert('Success', `Customer ${nextCustomer.userName || 'Anonymous'} has been served.`);
     } catch (error) {
@@ -92,6 +140,23 @@ const QueueManagement = ({ business }) => {
           style: 'destructive',
           onPress: async () => {
             try {
+              // Get the queue data first to access user ID and queue number
+              const queueDoc = await firestore
+                .collection('businesses')
+                .doc(businessId)
+                .collection('queues')
+                .doc(queueId)
+                .get();
+              
+              if (!queueDoc.exists) {
+                Alert.alert('Error', 'Queue entry not found');
+                return;
+              }
+              
+              const queueData = queueDoc.data();
+              const cancelledAt = firebase.firestore.FieldValue.serverTimestamp();
+              
+              // Update queue status to cancelled
               await firestore
                 .collection('businesses')
                 .doc(businessId)
@@ -99,8 +164,49 @@ const QueueManagement = ({ business }) => {
                 .doc(queueId)
                 .update({
                   status: 'cancelled',
-                  cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+                  cancelledAt: cancelledAt,
                 });
+              
+              // Remove from user's active queues and add to history
+              if (queueData.userId) {
+                try {
+                  // First check if the user has this queue in their active queues
+                  const userActiveQueueRef = await firestore
+                    .collection('users')
+                    .doc(queueData.userId)
+                    .collection('activeQueues')
+                    .where('businessId', '==', businessId)
+                    .where('queueNumber', '==', queueData.queueNumber)
+                    .get();
+                  
+                  // Delete from active queues
+                  if (!userActiveQueueRef.empty) {
+                    await firestore
+                      .collection('users')
+                      .doc(queueData.userId)
+                      .collection('activeQueues')
+                      .doc(userActiveQueueRef.docs[0].id)
+                      .delete();
+                  }
+                  
+                  // Add to user's queue history
+                  await firestore
+                    .collection('users')
+                    .doc(queueData.userId)
+                    .collection('queueHistory')
+                    .add({
+                      businessId: businessId,
+                      businessName: businessData.name,
+                      queueNumber: queueData.queueNumber,
+                      joinedAt: queueData.joinedAt,
+                      cancelledAt: cancelledAt,
+                      status: 'cancelled'
+                    });
+                } catch (userError) {
+                  console.error('Error updating user queue records:', userError);
+                  // Continue with the process even if updating user records fails
+                }
+              }
             } catch (error) {
               console.error('Error removing customer:', error);
               Alert.alert('Error', 'Failed to remove customer from queue.');

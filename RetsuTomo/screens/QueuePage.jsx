@@ -13,6 +13,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, firestore } from '../services/firebase';
+import firebase from '@react-native-firebase/app';
 import { useTheme } from '../theme/ThemeContext';
 
 export default function QueuePage() {
@@ -51,7 +52,7 @@ export default function QueuePage() {
                         .doc(businessId)
                         .collection('queues')
                         .where('userId', '==', user.uid)
-                        .where('status', 'in', ['waiting', 'current'])
+                        .where('status', 'in', ['active', 'waiting', 'current'])
                         .get();
                     
                     if (!queueSnapshot.empty) {
@@ -96,7 +97,7 @@ export default function QueuePage() {
                 .doc(businessId)
                 .collection('queues')
                 .where('userId', '==', user.uid)
-                .where('status', 'in', ['waiting', 'current'])
+                .where('status', 'in', ['active', 'waiting', 'current'])
                 .get();
             
             if (!existingQueueSnapshot.empty) {
@@ -109,39 +110,67 @@ export default function QueuePage() {
                 .collection('businesses')
                 .doc(businessId)
                 .collection('queues')
-                .where('status', 'in', ['waiting', 'current'])
+                .where('status', 'in', ['active', 'waiting', 'current'])
                 .get();
             
-            const queueLength = queueSnapshot.size;
+            const queueNumber = queueSnapshot.size + 1;
             
-            // Add user to queue
-            const queueRef = await firestore.collection('businesses').doc(businessId).collection('queues').add({
-                userId: user.uid,
-                status: 'waiting',
-                position: queueLength + 1,
-                joinedAt: new Date(),
-                estimatedWaitTime: (queueLength + 1) * (business.estimatedTimePerCustomer || 5),
-            });
+            // Check if queue is full
+            if (business.maxQueueSize && queueNumber > business.maxQueueSize) {
+                Alert.alert('Queue Full', 'This business has reached its maximum queue capacity. Please try again later.');
+                return;
+            }
             
-            // Get the queue data
-            const queueDoc = await queueRef.get();
-            setQueueStatus({
-                id: queueDoc.id,
-                ...queueDoc.data(),
-            });
+            // Create timestamp for joining
+            const joinedAt = firebase.firestore.Timestamp.now();
             
-            // Update business queue count
-            await firestore.collection('businesses').doc(businessId).update({
-                currentQueueLength: (business.currentQueueLength || 0) + 1,
-            });
+            // Get user profile to ensure we have the latest display name
+            const userProfile = await firestore.collection('users').doc(user.uid).get();
+            const userData = userProfile.exists ? userProfile.data() : {};
+            const userName = userData.displayName || user.displayName || 'Anonymous';
             
-            // Update local business data
-            setBusiness({
-                ...business,
-                currentQueueLength: (business.currentQueueLength || 0) + 1,
-            });
+            // Add to business queues
+            const queueRef = await firestore
+                .collection('businesses')
+                .doc(businessId)
+                .collection('queues')
+                .add({
+                    userId: user.uid,
+                    userName: userName,
+                    userEmail: user.email,
+                    queueNumber: queueNumber,
+                    status: 'active',
+                    joinedAt: joinedAt,
+                    estimatedWaitTime: business.estimatedTimePerCustomer * (queueNumber - 1)
+                });
             
-            Alert.alert('Success', 'You have joined the queue!');
+            // Add to user's active queues
+            await firestore
+                .collection('users')
+                .doc(user.uid)
+                .collection('activeQueues')
+                .doc(queueRef.id)
+                .set({
+                    businessId: businessId,
+                    businessName: business.name,
+                    queueNumber: queueNumber,
+                    joinedAt: joinedAt,
+                    status: 'active',
+                    userName: userName,
+                    estimatedWaitTime: business.estimatedTimePerCustomer * (queueNumber - 1)
+                });
+            
+            // Update queue status
+            const queueData = {
+                id: queueRef.id,
+                queueNumber: queueNumber,
+                status: 'active',
+                joinedAt: joinedAt,
+                estimatedWaitTime: business.estimatedTimePerCustomer * (queueNumber - 1)
+            };
+            
+            setQueueStatus(queueData);
+            Alert.alert('Success', `You have joined the queue. Your position is #${queueNumber}.`);
         } catch (error) {
             console.error('Error joining queue:', error);
             Alert.alert('Error', error.message);
@@ -154,36 +183,66 @@ export default function QueuePage() {
         try {
             setLeaving(true);
             
-            if (!queueStatus || !queueStatus.id) {
-                Alert.alert('Error', 'Queue entry not found');
-                return;
-            }
-            
-            // Update queue status to 'cancelled'
-            await firestore.collection('businesses').doc(businessId).collection('queues').doc(queueStatus.id).update({
-                status: 'cancelled',
-                leftAt: new Date(),
-            });
-            
-            // Update business queue count
-            await firestore.collection('businesses').doc(businessId).update({
-                currentQueueLength: Math.max((business.currentQueueLength || 0) - 1, 0),
-            });
-            
-            // Update local business data
-            setBusiness({
-                ...business,
-                currentQueueLength: Math.max((business.currentQueueLength || 0) - 1, 0),
-            });
-            
-            // Clear queue status
-            setQueueStatus(null);
-            
-            Alert.alert('Success', 'You have left the queue');
+            // Confirm with user
+            Alert.alert(
+                'Leave Queue',
+                'Are you sure you want to leave this queue?',
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel',
+                        onPress: () => setLeaving(false)
+                    },
+                    {
+                        text: 'Leave',
+                        style: 'destructive',
+                        onPress: async () => {
+                            const user = auth.currentUser;
+                            const leftAt = firebase.firestore.Timestamp.now();
+                            
+                            // Update queue status in business
+                            await firestore
+                                .collection('businesses')
+                                .doc(businessId)
+                                .collection('queues')
+                                .doc(queueStatus.id)
+                                .update({
+                                    status: 'cancelled',
+                                    leftAt: leftAt
+                                });
+                            
+                            // Remove from user's active queues
+                            await firestore
+                                .collection('users')
+                                .doc(user.uid)
+                                .collection('activeQueues')
+                                .doc(queueStatus.id)
+                                .delete();
+                            
+                            // Add to user's queue history
+                            await firestore
+                                .collection('users')
+                                .doc(user.uid)
+                                .collection('queueHistory')
+                                .add({
+                                    businessId: businessId,
+                                    businessName: business.name,
+                                    queueNumber: queueStatus.queueNumber,
+                                    joinedAt: queueStatus.joinedAt,
+                                    leftAt: leftAt,
+                                    status: 'cancelled'
+                                });
+                            
+                            setQueueStatus(null);
+                            Alert.alert('Success', 'You have left the queue.');
+                            setLeaving(false);
+                        }
+                    }
+                ]
+            );
         } catch (error) {
             console.error('Error leaving queue:', error);
             Alert.alert('Error', error.message);
-        } finally {
             setLeaving(false);
         }
     };
@@ -280,23 +339,25 @@ export default function QueuePage() {
                             <View style={styles.queueDetailItem}>
                                 <Text style={[styles.queueDetailLabel, { color: theme.secondaryText }]}>Position</Text>
                                 <Text style={[styles.queueDetailValue, { color: theme.text }]}>
-                                    {queueStatus.status === 'current' ? 'Now Serving' : `#${queueStatus.position}`}
-                                </Text>
-                            </View>
-                            
-                            <View style={styles.queueDetailItem}>
-                                <Text style={[styles.queueDetailLabel, { color: theme.secondaryText }]}>Estimated Wait</Text>
-                                <Text style={[styles.queueDetailValue, { color: theme.text }]}>
-                                    {queueStatus.status === 'current' 
-                                        ? 'It\'s your turn!' 
-                                        : `~${queueStatus.estimatedWaitTime} minutes`}
+                                    {queueStatus.status === 'current' ? 'Now Serving' : `#${queueStatus.queueNumber}`}
                                 </Text>
                             </View>
                             
                             <View style={styles.queueDetailItem}>
                                 <Text style={[styles.queueDetailLabel, { color: theme.secondaryText }]}>Joined At</Text>
                                 <Text style={[styles.queueDetailValue, { color: theme.text }]}>
-                                    {queueStatus.joinedAt?.toDate().toLocaleTimeString()}
+                                    {queueStatus.joinedAt && typeof queueStatus.joinedAt.toDate === 'function' 
+                                        ? queueStatus.joinedAt.toDate().toLocaleTimeString() 
+                                        : queueStatus.joinedAt instanceof Date 
+                                            ? queueStatus.joinedAt.toLocaleTimeString()
+                                            : 'Unknown'}
+                                </Text>
+                            </View>
+                            
+                            <View style={styles.queueDetailItem}>
+                                <Text style={[styles.queueDetailLabel, { color: theme.secondaryText }]}>Est. Wait Time</Text>
+                                <Text style={[styles.queueDetailValue, { color: theme.text }]}>
+                                    {queueStatus.estimatedWaitTime || (business?.estimatedTimePerCustomer * (queueStatus.queueNumber - 1))} mins
                                 </Text>
                             </View>
                         </View>
