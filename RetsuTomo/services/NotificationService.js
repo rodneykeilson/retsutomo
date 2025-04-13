@@ -8,17 +8,27 @@ class NotificationService {
     this.messageListener = null;
     this.notificationOpenedAppListener = null;
     this.onTokenRefreshListener = null;
+    this.backgroundMessageHandler = null;
   }
 
   async requestUserPermission() {
     if (Platform.OS === 'android') {
       try {
         // Request Android notification permission
-        await PermissionsAndroid.request(
+        const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
         );
+        
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          console.log('Notification permission granted');
+          return true;
+        } else {
+          console.log('Notification permission denied');
+          return false;
+        }
       } catch (error) {
         console.error('Failed to request notification permission:', error);
+        return false;
       }
     } else if (Platform.OS === 'ios') {
       // Request iOS notification permission
@@ -27,18 +37,30 @@ class NotificationService {
         authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
         authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
-      if (!enabled) {
+      if (enabled) {
+        console.log('Notification permission granted');
+        return true;
+      } else {
         console.log('Notification permission denied');
+        return false;
       }
     }
+    return false;
   }
 
   async getToken() {
     try {
+      // Check if permission is granted
+      const hasPermission = await this.requestUserPermission();
+      if (!hasPermission) {
+        console.log('Cannot get token: notification permission not granted');
+        return null;
+      }
+      
       // Get FCM token
       const token = await messaging().getToken();
       if (token) {
-        this.updateUserToken(token);
+        await this.updateUserToken(token);
         return token;
       }
     } catch (error) {
@@ -99,59 +121,109 @@ class NotificationService {
     // Handle foreground messages
     this.messageListener = messaging().onMessage(async remoteMessage => {
       console.log('Notification received in foreground:', remoteMessage);
+      
+      // Call the callback if provided
       if (onNotificationReceived) {
         onNotificationReceived(remoteMessage);
       }
       
-      // Store notification in user's notification collection
+      // Store notification in Firestore
       this.storeNotification(remoteMessage);
     });
-
+    
     // Handle notification opened
     this.notificationOpenedAppListener = messaging().onNotificationOpenedApp(remoteMessage => {
       console.log('Notification opened app from background state:', remoteMessage);
+      
+      // Call the callback if provided
       if (onNotificationOpened) {
         onNotificationOpened(remoteMessage);
       }
+      
+      // Mark notification as read
+      this.markNotificationAsRead(remoteMessage);
     });
-
+    
     // Check if app was opened from a notification
     messaging()
       .getInitialNotification()
       .then(remoteMessage => {
         if (remoteMessage) {
           console.log('Notification opened app from quit state:', remoteMessage);
+          
+          // Call the callback if provided
           if (onNotificationOpened) {
             onNotificationOpened(remoteMessage);
           }
+          
+          // Mark notification as read
+          this.markNotificationAsRead(remoteMessage);
         }
       });
-
+    
     // Handle token refresh
     this.onTokenRefreshListener = messaging().onTokenRefresh(token => {
+      console.log('FCM Token refreshed:', token);
       this.updateUserToken(token);
     });
+    
+    // Set up background message handler
+    this.setupBackgroundHandler();
   }
-
-  async storeNotification(notification) {
+  
+  setupBackgroundHandler() {
+    // Register background handler
+    messaging().setBackgroundMessageHandler(async remoteMessage => {
+      console.log('Message handled in the background:', remoteMessage);
+      
+      // Store notification in Firestore
+      return this.storeNotification(remoteMessage);
+    });
+  }
+  
+  async storeNotification(remoteMessage) {
     try {
       const user = auth().currentUser;
-      if (user) {
-        // Store notification in user's notification collection
-        await firestore()
-          .collection('users')
-          .doc(user.uid)
-          .collection('notifications')
-          .add({
-            title: notification.notification?.title || '',
-            body: notification.notification?.body || '',
-            data: notification.data || {},
-            read: false,
-            createdAt: firestore.FieldValue.serverTimestamp(),
-          });
-      }
+      if (!user) return;
+      
+      const { notification, data } = remoteMessage;
+      
+      // Create notification object
+      const notificationData = {
+        title: notification?.title || 'New Notification',
+        body: notification?.body || '',
+        data: data || {},
+        read: false,
+        createdAt: firestore.FieldValue.serverTimestamp(),
+      };
+      
+      // Store in Firestore
+      await firestore()
+        .collection('users')
+        .doc(user.uid)
+        .collection('notifications')
+        .add(notificationData);
+        
+      return notificationData;
     } catch (error) {
       console.error('Failed to store notification:', error);
+      return null;
+    }
+  }
+  
+  async markNotificationAsRead(remoteMessage) {
+    try {
+      const user = auth().currentUser;
+      if (!user || !remoteMessage.data?.notificationId) return;
+      
+      await firestore()
+        .collection('users')
+        .doc(user.uid)
+        .collection('notifications')
+        .doc(remoteMessage.data.notificationId)
+        .update({ read: true });
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
     }
   }
 

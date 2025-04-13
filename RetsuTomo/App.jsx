@@ -10,6 +10,7 @@ import { firebase } from '@react-native-firebase/app';
 import '@react-native-firebase/auth';
 import '@react-native-firebase/firestore';
 import '@react-native-firebase/messaging';
+import { Platform } from 'react-native';
 
 // Import notification service
 import NotificationService from './services/NotificationService';
@@ -157,23 +158,51 @@ function AppContent() {
     const initNotifications = async () => {
       try {
         // Request notification permissions
-        await NotificationService.requestUserPermission();
+        const permissionGranted = await NotificationService.requestUserPermission();
         
-        // Setup message listeners
-        NotificationService.setupMessageListeners(
-          // Callback for when notification is received in foreground
-          (notification) => {
-            console.log('Notification received in foreground:', notification);
-          },
-          // Callback for when notification is opened
-          (notification) => {
-            console.log('Notification opened:', notification);
+        if (permissionGranted) {
+          // Create notification channel for Android
+          if (Platform.OS === 'android') {
+            // Import PushNotification only for Android
+            const { Importance } = require('@react-native-firebase/messaging');
+            
+            // Create the channel
+            messaging().setAutoInitEnabled(true);
+            
+            // Configure how your app receives notifications when it is in the foreground
+            messaging().onMessage(async remoteMessage => {
+              console.log('Foreground notification received:', remoteMessage);
+              // You can show a local notification here if needed
+            });
           }
-        );
-        
-        // Get FCM token
-        const token = await NotificationService.getToken();
-        console.log('FCM Token:', token);
+          
+          // Setup message listeners
+          NotificationService.setupMessageListeners(
+            // Callback for when notification is received in foreground
+            (notification) => {
+              console.log('Notification received in foreground:', notification);
+            },
+            // Callback for when notification is opened
+            (notification) => {
+              console.log('Notification opened:', notification);
+              // Navigate to appropriate screen based on notification data
+              if (notification.data?.type === 'queue') {
+                // Navigate to queue details
+              } else if (notification.data?.type === 'business') {
+                // Navigate to business details
+              } else {
+                // Default to notifications screen
+                navigation.navigate('NotificationsScreen');
+              }
+            }
+          );
+          
+          // Get FCM token
+          const token = await NotificationService.getToken();
+          console.log('FCM Token:', token);
+        } else {
+          console.log('Notification permissions not granted');
+        }
       } catch (error) {
         console.error('Error initializing notifications:', error);
       }
