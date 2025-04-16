@@ -157,13 +157,21 @@ const NotificationsScreen = () => {
 
   const renderNotificationItem = ({ item }) => {
     // Use proper theme colors for dark mode compatibility
-    const backgroundColor = item.read ? theme.cardBackground : theme.highlightBackground || theme.cardBackground;
+    const backgroundColor = item.read ? theme.cardBackground : theme.highlightBackground;
     const textColor = theme.textColor;
     const secondaryTextColor = theme.textSecondary || theme.textColor;
     
     return (
       <TouchableOpacity
-        style={[styles.notificationItem, { backgroundColor }]}
+        style={[
+          styles.notificationItem,
+          {
+            backgroundColor,
+            borderColor: theme.borderColor,
+            borderWidth: 1,
+            shadowColor: theme.shadowColor,
+          },
+        ]}
         onPress={() => handleNotificationPress(item)}
       >
         <View style={styles.notificationContent}>
@@ -311,6 +319,7 @@ const styles = StyleSheet.create({
   },
   notificationTime: {
     fontSize: 12,
+    // color will be set inline using theme
   },
   unreadIndicator: {
     width: 10,
